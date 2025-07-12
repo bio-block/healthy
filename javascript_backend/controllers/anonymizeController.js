@@ -1,45 +1,9 @@
-require('dotenv').config();
-const express = require("express");
-const axios = require("axios");
-const { QdrantClient } = require("@qdrant/js-client-rest");
-const cors = require("cors");
 const multer = require('multer');
 const XLSX = require('xlsx');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 
-const app = express();
-const port = 3001;
-
-app.use(cors());
-app.use(express.json());
-
-// const qdrant = new QdrantClient({
-//      url: process.env.QDRANT_URL,
-//     apiKey: process.env.QDRANT_API_KEY,
-// });
-// const COLLECTION_NAME = "new_user_data";
-
-// async function ensureCollection() {
-//     try {
-//         await qdrant.getCollection(COLLECTION_NAME);
-//     } catch {
-//         await qdrant.createCollection(COLLECTION_NAME, {
-//             vectors: {
-//                 size: 384, 
-//                 distance: "Cosine"
-//             }
-//         });
-//     }
-// }
-// ensureCollection();
-
-// const generateId = () => {
-//   const timestamp = Date.now();
-//   const randomSuffix = Math.floor(Math.random() * 10000);
-//   return Number(`${timestamp}${randomSuffix}`);
-// };
-
+// Configure multer for file uploads
 const storage = multer.memoryStorage();
 const upload = multer({
     storage: storage,
@@ -74,68 +38,7 @@ function generateUUID() {
     return uuidv4();
 }
 
-// app.post("/store", async (req, res) => {
-//     const { summary, cid, metadata } = req.body;
-
-//     if (!summary || !cid) {
-//         return res.status(400).json({ error: "Missing 'summary' or 'cid'" });
-//     }
-
-//     try {
-//         const { data } = await axios.post("http://localhost:8000/embed", { text: summary });
-//         const embedding = data.embedding;
-        
-//         if (!embedding || embedding.length !== 384) {
-//             return res.status(500).json({ error: "Invalid embedding received" });
-//         }
-        
-//         await qdrant.upsert(COLLECTION_NAME, {
-//             points: [
-//                 {
-//                     id: generateId(),
-//                     vector: embedding,
-//                     payload: { summary, cid, ...metadata }
-//                 }
-//             ]
-//         });
-
-//         res.status(200).json({ message: "Stored successfully", cid });
-//     } catch (err) {
-//         console.error("Store Error:", err.message);
-//         res.status(500).json({ error: "Failed to store data" });
-//     }
-// });
-
-// app.post("/search", async (req, res) => {
-//     const { query } = req.body;
-//     if (!query) {
-//         return res.status(400).json({ error: "Missing 'query'" });
-//     }
-
-//     try {
-//         const { data } = await axios.post("http://localhost:8000/embed", { text: query });
-//         const queryVector = data.embedding;
-
-//         const searchResult = await qdrant.search(COLLECTION_NAME, {
-//             vector: queryVector,
-//             limit: 5,
-//             with_payload: true
-//         });
-
-//         const results = searchResult.map((item) => ({
-//             cid: item.payload.cid,
-//             score: item.score,
-//             metadata: item.payload
-//         }));
-
-//         res.status(200).json({ results });
-//     } catch (err) {
-//         console.error("Search Error:", err.message);
-//         res.status(500).json({ error: "Failed to search" });
-//     }
-// });
-
-app.post('/anonymize', upload.single('file'), async (req, res) => {
+const anonymizeFile = async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ 
@@ -143,13 +46,11 @@ app.post('/anonymize', upload.single('file'), async (req, res) => {
             });
         }
 
-    
         const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-
         const allIdentifiers = new Set();
         const sheetColumnRefs = {};
 
-     
+        // Process each sheet to identify PHI columns and patient IDs
         workbook.SheetNames.forEach(sheetName => {
             const worksheet = workbook.Sheets[sheetName];
             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
@@ -159,7 +60,7 @@ app.post('/anonymize', upload.single('file'), async (req, res) => {
             const headers = jsonData[0] || [];
             let patientIdCol = null;
 
-         
+            // Find patient ID column
             headers.forEach((header, index) => {
                 if (header && typeof header === 'string') {
                     const headerLower = header.toLowerCase();
@@ -170,7 +71,7 @@ app.post('/anonymize', upload.single('file'), async (req, res) => {
             });
 
             if (patientIdCol !== null) {
-           
+                // Collect patient IDs
                 for (let i = 1; i < jsonData.length; i++) {
                     const row = jsonData[i];
                     if (row && row[patientIdCol]) {
@@ -180,7 +81,7 @@ app.post('/anonymize', upload.single('file'), async (req, res) => {
                 }
                 sheetColumnRefs[sheetName] = { patientIdCol };
             } else {
-              
+                // Generate UUIDs for rows without patient ID column
                 for (let i = 1; i < jsonData.length; i++) {
                     const row = jsonData[i];
                     if (row && row.some(cell => cell !== undefined && cell !== null && cell !== '')) {
@@ -192,14 +93,14 @@ app.post('/anonymize', upload.single('file'), async (req, res) => {
             }
         });
 
-      
+        // Create mapping from identifiers to anonymized IDs
         const sortedIdentifiers = Array.from(allIdentifiers).sort();
         const identifierToId = {};
         sortedIdentifiers.forEach((identifier, index) => {
             identifierToId[identifier] = generateAnonymizedId(identifier, index + 1);
         });
 
-
+        // Create new workbook with anonymized data
         const cleanedWorkbook = XLSX.utils.book_new();
 
         workbook.SheetNames.forEach(sheetName => {
@@ -217,7 +118,7 @@ app.post('/anonymize', upload.single('file'), async (req, res) => {
             if (sheetColumnRefs[sheetName]) {
                 const sheetRefs = sheetColumnRefs[sheetName];
 
-            
+                // Identify columns to mask
                 const columnsToMask = [];
                 headers.forEach((header, index) => {
                     if (header && typeof header === 'string') {
@@ -235,7 +136,7 @@ app.post('/anonymize', upload.single('file'), async (req, res) => {
                 });
 
                 if (sheetRefs.useUUID) {
-                  
+                    // Handle sheets without patient ID column
                     for (let i = 1; i < cleanedData.length; i++) {
                         const row = cleanedData[i];
                         if (row && row.some(cell => cell !== undefined && cell !== null && cell !== '')) {
@@ -250,7 +151,7 @@ app.post('/anonymize', upload.single('file'), async (req, res) => {
                         }
                     }
                 } else {
-                
+                    // Handle sheets with patient ID column
                     for (let i = 1; i < cleanedData.length; i++) {
                         const row = cleanedData[i];
                         let id = null;
@@ -275,13 +176,12 @@ app.post('/anonymize', upload.single('file'), async (req, res) => {
             XLSX.utils.book_append_sheet(cleanedWorkbook, newWorksheet, sheetName);
         });
 
-     
+        // Generate output file
         const outputBuffer = XLSX.write(cleanedWorkbook, { 
             bookType: 'xlsx', 
             type: 'buffer' 
         });
 
-   
         const timestamp = Date.now();
         const filename = `phi_anonymized_${timestamp}.xlsx`;
         
@@ -289,7 +189,6 @@ app.post('/anonymize', upload.single('file'), async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.setHeader('Content-Length', outputBuffer.length);
 
-       
         res.send(outputBuffer);
 
     } catch (error) {
@@ -305,36 +204,9 @@ app.post('/anonymize', upload.single('file'), async (req, res) => {
             error: 'Internal server error occurred while processing the file.' 
         });
     }
-});
+};
 
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'OK', 
-        message: 'Backend API is running',
-        timestamp: new Date().toISOString()
-    });
-});
-
-app.use((error, req, res, next) => {
-    if (error instanceof multer.MulterError) {
-        if (error.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({ 
-                error: 'File too large. Maximum size is 10MB.' 
-            });
-        }
-    }
-    
-    console.error('Unhandled error:', error);
-    res.status(500).json({ 
-        error: 'Internal server error' 
-    });
-});
-
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
-    console.log(`Health check: http://localhost:${port}/health`);
-    console.log(`Available endpoints:`);
-    console.log(`  POST /store - Store data with embedding`);
-    console.log(`  POST /search - Search stored data`);
-    console.log(`  POST /anonymize - Anonymize Excel files`);
-});
+module.exports = {
+    anonymizeFile,
+    upload
+};
