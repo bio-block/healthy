@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Search, Filter, ArrowLeft, Download, ShoppingCart, Eye, FileText, Calendar, DollarSign, User, Building, X } from 'lucide-react';
 import { decryptFile } from './encryptionUtils';
 import { purchaseDocument, getDocumentPrice } from './contractService';
 
@@ -171,71 +172,123 @@ export default function SearchData({ onBack }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="flex justify-between items-center mb-6">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-        >
-          ← Back to Main
-        </button>
-        <h1 className="text-2xl font-bold text-gray-800">Search Documents</h1>
-        <div></div>
-      </div>
-
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
-          <div className="flex gap-2 mb-4">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Enter your search query..."
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
-              onKeyPress={(e) => e.key === 'Enter' && handleSearchSubmit()}
-            />
-            <button
-              onClick={handleSearchSubmit}
-              disabled={isSearching}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-lg"
-            >
-              {isSearching ? 'Searching...' : 'Search'}
-            </button>
-          </div>
-          
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      {/* Enhanced Header with Gradient */}
+      <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-indigo-600 h-2"></div>
+      
+      {/* Header Section */}
+      <div className="bg-white/90 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="text-blue-600 hover:text-blue-700 font-medium"
+              onClick={onBack}
+              className="flex items-center gap-3 px-5 py-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-200 shadow-lg hover:shadow-xl backdrop-blur-sm"
             >
-              {showFilters ? 'Hide Filters' : 'Show Filters'}
+              <ArrowLeft size={18} className="text-gray-600" />
+              <span className="font-medium text-gray-700">Back to Main</span>
             </button>
             
+            <div className="text-center">
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                Search Documents
+              </h1>
+              <p className="text-gray-600 text-sm mt-1">Find medical documents using advanced search and filtering</p>
+            </div>
+            
+            <div className="w-32"></div> {/* Spacer for balance */}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto p-6">
+        {/* Search Card */}
+        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl p-8 mb-8 border border-gray-100">
+          {/* Search Input */}
+          <div className="mb-6">
+            <div className="relative">
+              <Search size={20} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Enter your search query (e.g., 'diabetes research', 'cancer treatment')..."
+                className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg bg-white shadow-sm"
+                onKeyPress={(e) => e.key === 'Enter' && handleSearchSubmit()}
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleSearchSubmit}
+                disabled={isSearching}
+                className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none font-semibold"
+              >
+                {isSearching ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Searching...
+                  </>
+                ) : (
+                  <>
+                    <Search size={20} />
+                    Search Documents
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => setShowFilters(!showFilters)}
+                className={`flex items-center gap-3 px-6 py-4 border-2 rounded-2xl transition-all duration-200 font-medium ${
+                  showFilters 
+                    ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                    : 'border-gray-300 bg-white text-gray-700 hover:border-blue-400 hover:bg-blue-50'
+                }`}
+              >
+                <Filter size={18} />
+                {showFilters ? 'Hide Filters' : 'Show Filters'}
+              </button>
+            </div>
+            
             {useFilters && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-green-600">Filters Active</span>
+              <div className="flex items-center gap-3 px-4 py-2 bg-green-50 border border-green-200 rounded-xl">
+                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium text-green-700">Filters Active</span>
                 <button
                   onClick={resetFilters}
-                  className="text-sm text-red-600 hover:text-red-700"
+                  className="text-sm text-red-600 hover:text-red-700 font-medium ml-2"
                 >
-                  Clear All
+                  <X size={14} className="inline mr-1" />
+                  Clear
                 </button>
               </div>
             )}
           </div>
           
+          {/* Advanced Filters Panel */}
           {showFilters && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="mt-8 p-6 bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl border border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <Filter size={20} className="text-blue-600" />
+                Advanced Filters
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+                {/* Data Type Filter */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Data Type</label>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                    <Building size={16} className="text-blue-600" />
+                    Data Type
+                  </label>
                   <select
                     value={filters.dataType}
                     onChange={(e) => {
                       setFilters({...filters, dataType: e.target.value});
                       setUseFilters(true);
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all duration-200"
                   >
                     <option value="">All Types</option>
                     <option value="Personal">Personal</option>
@@ -243,15 +296,19 @@ export default function SearchData({ onBack }) {
                   </select>
                 </div>
                 
+                {/* Gender Filter */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                    <User size={16} className="text-purple-600" />
+                    Gender
+                  </label>
                   <select
                     value={filters.gender}
                     onChange={(e) => {
                       setFilters({...filters, gender: e.target.value});
                       setUseFilters(true);
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all duration-200"
                   >
                     <option value="">All Genders</option>
                     <option value="Male">Male</option>
@@ -261,15 +318,19 @@ export default function SearchData({ onBack }) {
                   </select>
                 </div>
                 
+                {/* Data Source Filter */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Data Source</label>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                    <Building size={16} className="text-green-600" />
+                    Data Source
+                  </label>
                   <select
                     value={filters.dataSource}
                     onChange={(e) => {
                       setFilters({...filters, dataSource: e.target.value});
                       setUseFilters(true);
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all duration-200"
                   >
                     <option value="">All Sources</option>
                     <option value="Hospital">Hospital</option>
@@ -284,15 +345,19 @@ export default function SearchData({ onBack }) {
                   </select>
                 </div>
                 
+                {/* File Type Filter */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">File Type</label>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                    <FileText size={16} className="text-orange-600" />
+                    File Type
+                  </label>
                   <select
                     value={filters.fileType}
                     onChange={(e) => {
                       setFilters({...filters, fileType: e.target.value});
                       setUseFilters(true);
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all duration-200"
                   >
                     <option value="">All Types</option>
                     <option value="application/pdf">PDF</option>
@@ -306,15 +371,19 @@ export default function SearchData({ onBack }) {
                   </select>
                 </div>
                 
+                {/* Price Range Filter */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Price Range (ETH)</label>
+                  <label className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                    <DollarSign size={16} className="text-green-600" />
+                    Price Range (ETH)
+                  </label>
                   <select
                     value={filters.priceRange}
                     onChange={(e) => {
                       setFilters({...filters, priceRange: e.target.value});
                       setUseFilters(true);
                     }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all duration-200"
                   >
                     <option value="">All Prices</option>
                     <option value="0-0.01">0 - 0.01 ETH</option>
@@ -327,17 +396,18 @@ export default function SearchData({ onBack }) {
                 </div>
               </div>
               
-              <div className="flex justify-end mt-4 gap-2">
+              {/* Filter Action Buttons */}
+              <div className="flex justify-end gap-3">
                 <button
                   onClick={resetFilters}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="px-6 py-3 text-gray-600 hover:text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium"
                 >
-                  Clear Filters
+                  Clear All Filters
                 </button>
                 <button
                   onClick={handleSearchSubmit}
                   disabled={isSearching}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300"
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-400 transition-all duration-200 font-medium shadow-lg hover:shadow-xl"
                 >
                   Apply Filters
                 </button>
@@ -346,8 +416,9 @@ export default function SearchData({ onBack }) {
           )}
         </div>
 
+        {/* Results Section */}
         {searchResults && (
-          <div className="space-y-4">
+          <div className="space-y-6">
             {(() => {
               const resultsArray = Array.isArray(searchResults) 
                 ? searchResults 
@@ -355,103 +426,150 @@ export default function SearchData({ onBack }) {
               
               return (
                 <>
-                  <h3 className="text-lg font-semibold mb-4">
-                    {useFilters ? 'Filtered Results' : 'Search Results'} ({resultsArray.length || 0} found)
-                    {useFilters && (
-                      <span className="text-sm font-normal text-blue-600 ml-2">
-                        • Filters applied
-                      </span>
-                    )}
-                  </h3>
-                  
-                  {resultsArray.length === 0 ? (
-                    <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-                      <p className="text-gray-500">No documents found matching your search query.</p>
-                      <div className="mt-4 p-4 bg-gray-50 rounded text-left">
-                        <p className="text-xs text-gray-600 mb-2">Debug - API Response:</p>
-                        <pre className="text-xs text-gray-500 overflow-auto max-h-32">
-                          {JSON.stringify(searchResults, null, 2)}
-                        </pre>
+                  {/* Results Header */}
+                  <div className="bg-white/90 backdrop-blur-sm rounded-2xl p-6 border border-gray-100 shadow-lg">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                        <Eye size={24} className="text-blue-600" />
+                        {useFilters ? 'Filtered Results' : 'Search Results'}
+                      </h3>
+                      <div className="flex items-center gap-4">
+                        <span className="px-4 py-2 bg-blue-100 text-blue-700 rounded-xl font-semibold">
+                          {resultsArray.length || 0} found
+                        </span>
+                        {useFilters && (
+                          <span className="px-4 py-2 bg-green-100 text-green-700 rounded-xl font-medium text-sm flex items-center gap-2">
+                            <Filter size={14} />
+                            Filters applied
+                          </span>
+                        )}
                       </div>
                     </div>
-                  ) : (
-                    <div className="grid gap-4">
-                      {resultsArray.map((result, index) => (
-                        <div key={index} className="bg-white rounded-lg shadow-lg p-6 border border-gray-200">
-                          <div className="mb-4">
-                            <h4 className="text-lg font-semibold text-gray-800 mb-2">
-                              {(() => {
+                  </div>
+                  
+                  {/* Results Grid */}
+                  {resultsArray.length === 0 ? (
+                    <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl p-12 text-center border border-gray-100">
+                      <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <Search size={32} className="text-gray-400" />
+                      </div>
+                      <h3 className="text-xl font-semibold text-gray-800 mb-2">No Documents Found</h3>
+                      <p className="text-gray-500 mb-6">No documents found matching your search criteria. Try adjusting your search terms or filters.</p>
                       
-                                const fullText = result.summary || result.description || result.content || result.document || '';
-                                const titleMatch = fullText.match(/^Dataset Title:\s*(.+?)$/m);
-                                return titleMatch ? titleMatch[1].trim() : (result.metadata?.fileName || result.title || result.fileName || `Document ${index + 1}`);
-                              })()}
-                            </h4>
-                            
-                            <p className="text-gray-600 mb-3">
-                              {(() => {
+                      {/* Debug Information */}
+                      <details className="mt-6 p-4 bg-gray-50 rounded-xl text-left">
+                        <summary className="cursor-pointer text-sm font-medium text-gray-600 mb-2">Debug Information</summary>
+                        <pre className="text-xs text-gray-500 overflow-auto max-h-32 bg-white p-3 rounded border">
+                          {JSON.stringify(searchResults, null, 2)}
+                        </pre>
+                      </details>
+                    </div>
+                  ) : (
+                    <div className="grid gap-6">
+                      {resultsArray.map((result, index) => (
+                        <div key={index} className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl p-8 border border-gray-100 hover:shadow-2xl transition-all duration-200">
+                          {/* Document Header */}
+                          <div className="flex items-start justify-between mb-6">
+                            <div className="flex-1">
+                              <h4 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-3">
+                                <FileText size={20} className="text-blue-600 flex-shrink-0" />
+                                {(() => {
+                                  const fullText = result.summary || result.description || result.content || result.document || '';
+                                  const titleMatch = fullText.match(/^Dataset Title:\s*(.+?)$/m);
+                                  return titleMatch ? titleMatch[1].trim() : (result.metadata?.fileName || result.title || result.fileName || `Document ${index + 1}`);
+                                })()}
+                              </h4>
                               
-                                const fullText = result.summary || result.description || result.content || result.document || '';
-                                
-                          
-                                const summaryMatch = fullText.match(/^Dataset Title:\s*.+?\n(.+?)(?:\nDisease Tags:|$)/s);
-                                if (summaryMatch) {
-                                  return summaryMatch[1].trim();
-                                }
-                                
-                               
-                                return fullText || 'No summary available';
-                              })()}
-                            </p>
-                            
-                            <div className="grid grid-cols-2 gap-4 text-sm text-gray-500 mb-4">
-                              {result.metadata?.fileType && (
-                                <div>
-                                  <span className="font-medium">File Type:</span> {result.metadata.fileType}
-                                </div>
-                              )}
-                              {result.metadata?.fileSize && (
-                                <div>
-                                  <span className="font-medium">Size:</span> {(result.metadata.fileSize / 1024).toFixed(1)} KB
-                                </div>
-                              )}
-                              {result.metadata?.uploadDate && (
-                                <div>
-                                  <span className="font-medium">Uploaded:</span> {new Date(result.metadata.uploadDate).toLocaleDateString()}
-                                </div>
-                              )}
-                              {result.metadata?.price && (
-                                <div>
-                                  <span className="font-medium">Price:</span> {result.metadata.price} ETH
-                                </div>
-                              )}
-                              {result.metadata?.gender && (
-                                <div>
-                                  <span className="font-medium">Gender:</span> {result.metadata.gender}
-                                </div>
-                              )}
-                              {result.metadata?.dataSource && (
-                                <div>
-                                  <span className="font-medium">Data Source:</span> {result.metadata.dataSource}
-                                </div>
-                              )}
-                              {result.metadata?.dataType && (
-                                <div>
-                                  <span className="font-medium">Data Type:</span> {result.metadata.dataType}
-                                </div>
-                              )}
+                              <p className="text-gray-600 leading-relaxed mb-4">
+                                {(() => {
+                                  const fullText = result.summary || result.description || result.content || result.document || '';
+                                  const summaryMatch = fullText.match(/^Dataset Title:\s*.+?\n(.+?)(?:\nDisease Tags:|$)/s);
+                                  if (summaryMatch) {
+                                    return summaryMatch[1].trim();
+                                  }
+                                  return fullText || 'No summary available';
+                                })()}
+                              </p>
                             </div>
+                            
+                            {/* Price Badge */}
+                            {result.metadata?.price && (
+                              <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-xl font-bold text-lg shadow-lg">
+                                {result.metadata.price} ETH
+                              </div>
+                            )}
                           </div>
                           
-                          <div className="flex justify-end items-center pt-4 border-t border-gray-200">
-                            
+                          {/* Metadata Grid */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            {result.metadata?.fileType && (
+                              <div className="bg-blue-50 rounded-xl p-3">
+                                <div className="text-xs font-medium text-blue-600 mb-1">File Type</div>
+                                <div className="text-sm font-semibold text-blue-800">{result.metadata.fileType.split('/').pop().toUpperCase()}</div>
+                              </div>
+                            )}
+                            {result.metadata?.fileSize && (
+                              <div className="bg-purple-50 rounded-xl p-3">
+                                <div className="text-xs font-medium text-purple-600 mb-1">Size</div>
+                                <div className="text-sm font-semibold text-purple-800">{(result.metadata.fileSize / 1024).toFixed(1)} KB</div>
+                              </div>
+                            )}
+                            {result.metadata?.uploadDate && (
+                              <div className="bg-orange-50 rounded-xl p-3">
+                                <div className="text-xs font-medium text-orange-600 mb-1 flex items-center gap-1">
+                                  <Calendar size={12} />
+                                  Uploaded
+                                </div>
+                                <div className="text-sm font-semibold text-orange-800">{new Date(result.metadata.uploadDate).toLocaleDateString()}</div>
+                              </div>
+                            )}
+                            {result.metadata?.dataSource && (
+                              <div className="bg-green-50 rounded-xl p-3">
+                                <div className="text-xs font-medium text-green-600 mb-1">Source</div>
+                                <div className="text-sm font-semibold text-green-800">{result.metadata.dataSource}</div>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Additional Metadata */}
+                          <div className="flex flex-wrap gap-2 mb-6">
+                            {result.metadata?.gender && (
+                              <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                                👤 {result.metadata.gender}
+                              </span>
+                            )}
+                            {result.metadata?.dataType && (
+                              <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">
+                                🔐 {result.metadata.dataType}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Action Button */}
+                          <div className="flex justify-end pt-4 border-t border-gray-200">
                             {(result.cid || result.ipfsHash || result.hash) && (
                               <button
                                 onClick={() => handlePurchaseAndDownload(result, index)}
                                 disabled={purchasing[index] || downloading[index]}
-                                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                                className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl hover:from-green-700 hover:to-emerald-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none font-semibold"
                               >
-                                {purchasing[index] ? 'Purchasing...' : downloading[index] ? 'Downloading...' : `Purchase & Download (${result.metadata?.price || '...'} ETH)`}
+                                {purchasing[index] ? (
+                                  <>
+                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Purchasing...
+                                  </>
+                                ) : downloading[index] ? (
+                                  <>
+                                    <Download size={20} />
+                                    Downloading...
+                                  </>
+                                ) : (
+                                  <>
+                                    <ShoppingCart size={20} />
+                                    Purchase & Download
+                                    <span className="text-green-100">({result.metadata?.price || '...'} ETH)</span>
+                                  </>
+                                )}
                               </button>
                             )}
                           </div>
