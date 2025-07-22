@@ -8,22 +8,28 @@ Bio-Block is a decentralized document management system that leverages blockchai
 - **Python Backend**: [https://bioblock-python-backend.onrender.com](https://bioblock-python-backend.onrender.com)
 - **JavaScript Backend**: [https://bioblock-js-backend.onrender.com](https://bioblock-js-backend.onrender.com)
 
-## Recent Updates (MetaDataImprovement Branch)
+## Recent Updates (DesignImprovement Branch)
 
-- **Enhanced Search Capabilities**: Added comprehensive filtering system with metadata-based search options
-- **Advanced Filter Integration**: Users can now filter by data type, gender, data source, price range, and file type
-- **Combined Search & Filter**: New endpoint that combines semantic search with metadata filtering for precise document discovery
-- **Improved User Experience**: Enhanced search interface with toggle-able filter options and better result display
+- **Complete UI Redesign**: Modern glassmorphism design with gradient backgrounds and enhanced visual appeal
+- **Enhanced Upload Experience**: Interactive progress modal with real-time step tracking during document upload
+- **Improved Main Dashboard**: Redesigned homepage with feature cards, gradient text effects, and modern navigation
+- **Advanced Search Interface**: Enhanced search page with collapsible filter panels and improved result display
+- **Visual Progress Feedback**: Users now see detailed progress during upload process with animated step indicators
+- **Enhanced Search Capabilities**: Comprehensive filtering system with metadata-based search options
+- **Advanced Filter Integration**: Users can filter by data type, gender, data source, price range, and file type
+- **Combined Search & Filter**: Endpoint that combines semantic search with metadata filtering for precise document discovery
 
 ## Features
 
+- **Modern UI/UX Design**: Complete interface redesign with glassmorphism effects, gradient backgrounds, and responsive layouts
+- **Interactive Upload Process**: Step-by-step progress modal showing real-time upload status with visual indicators
 - **Document Upload**: Upload documents to IPFS with secure, decentralized storage
 - **Enhanced Data Collection**: Comprehensive metadata collection including dataset title, disease tags, data type (Personal/Institution), demographics, and data source
 - **Document Anonymization**: Automatic PHI anonymization for Excel files with wallet-based hashing for personal data
 - **Blockchain Verification**: Store document hashes on the Ethereum blockchain for tamper-proof verification
 - **Advanced Search & Filtering**: Find documents using natural language queries with vector search and comprehensive metadata filtering
-- **User Dashboard**: Complete dashboard to view earnings, withdraw funds, and manage documents
-- **Document Management**: View all uploaded documents with pricing and download capabilities
+- **Enhanced User Dashboard**: Complete dashboard with modern design to view earnings, withdraw funds, and manage documents
+- **Document Management**: View all uploaded documents with improved pricing and download capabilities
 - **Document Downloads**: Direct download of owned documents with original encryption/decryption
 - **Document Marketplace**: Set prices for documents and earn from document purchases
 - **Earnings Tracking**: Real-time earnings display and withdrawal functionality
@@ -70,11 +76,13 @@ healthy/
 The project consists of multiple components:
 
 ### Frontend (React)
-- Modern UI built with React.js and Tailwind CSS
+- Modern UI built with React.js and Tailwind CSS featuring glassmorphism design
+- Gradient backgrounds, rounded corners, and shadow effects for enhanced visual appeal
+- Interactive progress modals with real-time step tracking during uploads
 - Wallet integration using Ethereum provider
-- Document upload and search interfaces
-- Complete user dashboard with earnings tracking
-- Document management with download functionality
+- Enhanced document upload and search interfaces with improved user experience
+- Complete user dashboard with earnings tracking and modern design elements
+- Document management with download functionality and visual improvements
 - Real-time earnings display and withdrawal capabilities
 
 ### JavaScript Backend (Express)
@@ -255,7 +263,20 @@ This allows seamless switching between local development and production environm
 
 ## Enhanced Upload System
 
-The document upload system has been significantly enhanced to collect comprehensive metadata:
+The document upload system has been significantly enhanced with both comprehensive metadata collection and an interactive user experience:
+
+### Visual Progress Tracking
+- **Interactive Progress Modal**: Step-by-step visual feedback during upload process
+- **Real-time Status Updates**: Each upload stage is clearly displayed with progress indicators
+- **Six-Step Process Visualization**:
+  1. 📁 Preparing file
+  2. 🔄 Anonymizing data (for Excel files)
+  3. 🔒 Encrypting file
+  4. 📤 Uploading to IPFS
+  5. ⛓️ Storing on blockchain
+  6. 💾 Saving metadata
+- **Error Handling**: Clear visual feedback for any step failures with specific error messages
+- **Success Confirmation**: Complete process confirmation with transaction details
 
 ### Required Fields
 - **Dataset Title**: Unique identifier for the document
@@ -310,17 +331,20 @@ The platform features a sophisticated search system that combines semantic searc
 
 ## How It Works
 
-1. **Document Upload**: Users upload files through the React interface with comprehensive metadata
-2. **Data Collection**: Enhanced form collects dataset title, description, disease tags, data type, demographics, and data source
-3. **File Anonymization**: For personal data types, wallet address is used for anonymization; institutions use standard methods
-4. **IPFS Storage**: Files are encrypted and stored on IPFS using Pinata service
-5. **Blockchain Recording**: Document hashes are stored on Ethereum for verification
-6. **Vector Embedding**: Document summaries with metadata are converted to vectors and stored in ChromaDB
-7. **Advanced Search**: Users can search using natural language queries, apply metadata filters, or combine both for precise document discovery
-8. **Document Management**: Users can view all their uploaded documents in the dashboard
-9. **Earnings Tracking**: Real-time tracking of earnings from document purchases
-10. **Secure Downloads**: Direct download of owned documents with automatic decryption
-11. **Marketplace**: Users can purchase documents from others and earn from their own uploads
+1. **Modern Interface**: Users interact through a beautifully designed interface with glassmorphism effects and gradient backgrounds
+2. **Document Upload**: Users upload files through the enhanced React interface with comprehensive metadata collection
+3. **Interactive Progress**: Real-time progress modal shows each step of the upload process with visual indicators
+4. **Data Collection**: Enhanced form collects dataset title, description, disease tags, data type, demographics, and data source
+5. **File Anonymization**: For personal data types, wallet address is used for anonymization; institutions use standard methods
+6. **IPFS Storage**: Files are encrypted and stored on IPFS using Pinata service with progress tracking
+7. **Blockchain Recording**: Document hashes are stored on Ethereum for verification with transaction feedback
+8. **Vector Embedding**: Document summaries with metadata are converted to vectors and stored in ChromaDB
+9. **Enhanced Search Experience**: Users can search using natural language queries with improved filter interfaces
+10. **Advanced Filtering**: Apply metadata filters through collapsible panels for precise document discovery
+11. **Document Management**: Users can view all their uploaded documents in the modernized dashboard
+12. **Earnings Tracking**: Real-time tracking of earnings from document purchases with enhanced visual display
+13. **Secure Downloads**: Direct download of owned documents with automatic decryption
+14. **Marketplace**: Users can purchase documents from others and earn from their own uploads
 
 ## Smart Contract
 
@@ -343,6 +367,8 @@ The project uses a smart contract (`DocumentStorage.sol`) deployed on the Ethere
 - Personal data anonymization using wallet-based hashing
 - Advanced document search with multiple filter options (data type, gender, data source, price range, file type)
 - Hash-based file naming for download security
+- Interactive progress tracking with secure step-by-step validation
+- Enhanced UI security with modern design patterns and user feedback systems
 
 ## Deployment
 
