@@ -8,12 +8,64 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
   const [selectedFile, setSelectedFile] = useState(null);
   const [datasetTitle, setDatasetTitle] = useState('');
   const [summary, setSummary] = useState('');
-  const [diseaseTags, setDiseaseTags] = useState('');
+  const [diseaseTags, setDiseaseTags] = useState([]);
   const [dataType, setDataType] = useState('');
   const [gender, setGender] = useState('');
   const [dataSource, setDataSource] = useState('');
   const [price, setPrice] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+
+  // Available disease options
+  const diseaseOptions = [
+    'Cancer',
+    'Diabetes',
+    'Heart Disease',
+    'Hypertension',
+    'Stroke',
+    'Asthma',
+    'COPD (Chronic Obstructive Pulmonary Disease)',
+    'Kidney Disease',
+    'Liver Disease',
+    'Arthritis',
+    'Osteoporosis',
+    'Alzheimer\'s Disease',
+    'Parkinson\'s Disease',
+    'Multiple Sclerosis',
+    'Epilepsy',
+    'Depression',
+    'Anxiety Disorders',
+    'Bipolar Disorder',
+    'Schizophrenia',
+    'Autism Spectrum Disorder',
+    'ADHD (Attention Deficit Hyperactivity Disorder)',
+    'Obesity',
+    'Eating Disorders',
+    'Sleep Disorders',
+    'Migraine',
+    'Thyroid Disorders',
+    'Autoimmune Diseases',
+    'Infectious Diseases',
+    'Respiratory Infections',
+    'Gastrointestinal Disorders',
+    'Skin Conditions',
+    'Eye Diseases',
+    'Hearing Loss',
+    'Blood Disorders',
+    'Bone Fractures',
+    'Sports Injuries',
+    'Pregnancy Related',
+    'Pediatric Conditions',
+    'Geriatric Conditions',
+    'Rare Diseases',
+    'Genetic Disorders',
+    'Surgical Procedures',
+    'Emergency Medicine',
+    'Rehabilitation',
+    'Preventive Care',
+    'Mental Health',
+    'Substance Abuse',
+    'Other'
+  ];
   
   // Modal and progress states
   const [showModal, setShowModal] = useState(false);
@@ -100,7 +152,7 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
       setSelectedFile(null);
       setDatasetTitle('');
       setSummary('');
-      setDiseaseTags('');
+      setDiseaseTags([]);
       setDataType('');
       setGender('');
       setDataSource('');
@@ -153,8 +205,8 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
       return;
     }
 
-    if (!diseaseTags.trim()) {
-      alert('Please provide disease tags');
+    if (!diseaseTags.length) {
+      alert('Please select at least one disease tag');
       return;
     }
 
@@ -254,7 +306,7 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
           dataType: dataType,
           gender: gender,
           dataSource: dataSource,
-          ...(diseaseTags.trim() && { disease_tags: diseaseTags.trim() })
+          ...(diseaseTags.length && { disease_tags: diseaseTags.join(', ') })
         };
 
         const pythonBackendUrl = process.env.REACT_APP_PYTHON_BACKEND_URL || 'http://localhost:3002';
@@ -444,15 +496,63 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
                   <label htmlFor="diseaseTags" className="block text-sm font-semibold text-gray-800 mb-2">
                     🏷️ Disease Tags *
                   </label>
-                  <input
-                    id="diseaseTags"
-                    type="text"
-                    value={diseaseTags}
-                    onChange={(e) => setDiseaseTags(e.target.value)}
-                    placeholder="e.g., cancer, diabetes, heart disease"
-                    className={`w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${!isWalletConnected ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
-                    disabled={!isWalletConnected}
-                  />
+                  <div className="relative">
+                    <select
+                      id="diseaseTags"
+                      onChange={(e) => {
+                        const selectedValue = e.target.value;
+                        if (selectedValue && !diseaseTags.includes(selectedValue)) {
+                          setDiseaseTags([...diseaseTags, selectedValue]);
+                        }
+                        e.target.value = ''; // Reset dropdown
+                      }}
+                      className={`w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${!isWalletConnected ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+                      disabled={!isWalletConnected}
+                    >
+                      <option value="">Select disease tags to add...</option>
+                      {diseaseOptions.map((disease) => (
+                        <option key={disease} value={disease} disabled={diseaseTags.includes(disease)}>
+                          {disease}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {/* Selected Tags Display */}
+                  {diseaseTags.length > 0 && (
+                    <div className="mt-3 p-3 bg-blue-50 rounded-xl border border-blue-200">
+                      <p className="text-sm font-medium text-blue-800 mb-2">Selected Disease Tags:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {diseaseTags.map((tag, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                          >
+                            {tag}
+                            <button
+                              type="button"
+                              onClick={() => setDiseaseTags(diseaseTags.filter((_, i) => i !== index))}
+                              className="ml-1 hover:bg-blue-200 rounded-full p-1 transition-colors duration-200"
+                              title="Remove tag"
+                            >
+                              <X size={12} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDiseaseTags([])}
+                        className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        Clear all tags
+                      </button>
+                    </div>
+                  )}
+                  
+                  <p className="text-xs text-gray-500 mt-2">
+                    Select multiple disease tags that apply to your document. Click on a tag to remove it.
+                  </p>
                 </div>
 
                 {/* Data Type */}
@@ -574,7 +674,7 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
               {/* Upload Button */}
               <button
                 onClick={handleUpload}
-                disabled={!selectedFile || !isWalletConnected || !datasetTitle.trim() || !summary.trim() || !diseaseTags.trim() || !dataType || !gender || !dataSource || !price || parseFloat(price) <= 0 || isUploading}
+                disabled={!selectedFile || !isWalletConnected || !datasetTitle.trim() || !summary.trim() || !diseaseTags.length || !dataType || !gender || !dataSource || !price || parseFloat(price) <= 0 || isUploading}
                 className="w-full px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl hover:from-green-700 hover:to-emerald-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none font-semibold text-lg"
               >
                 {isUploading ? (
