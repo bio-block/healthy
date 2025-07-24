@@ -1,10 +1,18 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 import chromadb
 import time
 import uuid
+import cv2
+import pytesseract
+import spacy
+from pytesseract import Output
+import numpy as np
+from PIL import Image
+import io
 
 app = FastAPI()
 
@@ -18,6 +26,14 @@ app.add_middleware(
 
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="new_user_data")
+
+try:
+    nlp = spacy.load("en_core_web_sm")
+except IOError:
+    print("Warning: spaCy English model not found. Image anonymization will not work.")
+    nlp = None
+
+PHI_LABELS = {"PERSON", "ORG", "GPE", "DATE", "TIME"}
 
 class StoreRequest(BaseModel):
     summary: str
@@ -36,6 +52,94 @@ def generate_id() -> str:
     timestamp = int(time.time() * 1000)
     random_suffix = hash(str(uuid.uuid4())) % 10000
     return f"{timestamp}{random_suffix}"
+
+def mask_phi_in_image(image_cv):
+    """
+    Detect and mask PHI (Personal Health Information) in an image using OCR and NLP
+    """
+    if nlp is None:
+        raise HTTPException(status_code=500, detail="NLP model not available for image anonymization")
+    
+    try:
+     
+        ocr_data = pytesseract.image_to_data(image_cv, output_type=Output.DICT)
+        
+        n_boxes = len(ocr_data['text'])
+        boxes = []
+        full_text = ""
+ 
+        for i in range(n_boxes):
+            word = ocr_data['text'][i].strip()
+            if word != "":
+                x, y, w, h = ocr_data['left'][i], ocr_data['top'][i], ocr_data['width'][i], ocr_data['height'][i]
+                full_text += word + " "
+                boxes.append((word, x, y, w, h))
+   
+        doc = nlp(full_text)
+        
+        for ent in doc.ents:
+            if ent.label_ in PHI_LABELS:
+                for word, x, y, w, h in boxes:
+                    if ent.text.strip().startswith(word):
+                 
+                        cv2.rectangle(image_cv, (x, y), (x + w, y + h), (0, 0, 0), -1)
+                        break
+        
+        return image_cv
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
+
+@app.get("/")
+async def root():
+    return {
+        "message": "Bio-Block Python Backend API", 
+        "endpoints": {
+            "/store": "Store document data",
+            "/search": "Search documents", 
+            "/filter": "Filter documents by metadata",
+            "/search_with_filter": "Combined search and filter",
+            "/anonymize_image": "Anonymize PHI in images"
+        }
+    }
+
+@app.post("/anonymize_image")
+async def anonymize_image(file: UploadFile = File(...)):
+    """
+    Anonymize PHI in JPEG/JPG/PNG images using OCR and NLP
+    """
+    try:
+       
+        if not file.content_type or not file.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="File must be an image")
+        
+        if file.content_type not in ['image/jpeg', 'image/jpg', 'image/png']:
+            raise HTTPException(status_code=400, detail="Only JPEG, JPG, and PNG images are supported")
+        
+        contents = await file.read()
+        image = Image.open(io.BytesIO(contents)).convert("RGB")
+       
+        image_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        
+        masked_image = mask_phi_in_image(image_cv)
+        
+        masked_image_rgb = cv2.cvtColor(masked_image, cv2.COLOR_BGR2RGB)
+        masked_pil = Image.fromarray(masked_image_rgb)
+        
+        img_buffer = io.BytesIO()
+        masked_pil.save(img_buffer, format='JPEG', quality=95)
+        img_buffer.seek(0)
+
+        return StreamingResponse(
+            io.BytesIO(img_buffer.read()),
+            media_type="image/jpeg",
+            headers={"Content-Disposition": f"attachment; filename=anonymized_{file.filename}"}
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to anonymize image: {str(e)}")
 
 
 @app.post("/store")
