@@ -8,16 +8,19 @@ Bio-Block is a decentralized document management system that leverages blockchai
 - **Python Backend**: [https://bioblock-python-backend.onrender.com](https://bioblock-python-backend.onrender.com)
 - **JavaScript Backend**: [https://bioblock-js-backend.onrender.com](https://bioblock-js-backend.onrender.com)
 
-## Recent Updates (DesignImprovement Branch)
+## Recent Updates (ImagePHIremoval Branch)
 
+- **Image PHI Anonymization**: New OCR + NLP-based anonymization for medical images (JPEG, PNG) using Tesseract OCR and spaCy NLP
+- **Dual-Backend Architecture**: Smart routing system - Excel files to JavaScript backend (port 3001), image files to Python backend (port 3002)
+- **Enhanced File Support**: Streamlined to support only Excel (.xlsx, .xls) and image files (.jpg, .jpeg, .png) with PHI removal capabilities
+- **Advanced PHI Detection**: Comprehensive entity recognition for medical images including names, dates, addresses, phone numbers, and medical identifiers
+- **Improved Upload Flow**: Updated upload interface with dual-backend routing and enhanced progress tracking for image anonymization
+- **Simplified Gender Options**: Standardized gender field to Male, Female, Other (now optional) across upload and search interfaces
+- **Updated Search Filters**: Removed price range filter, updated file type options to match supported formats
 - **Complete UI Redesign**: Modern glassmorphism design with gradient backgrounds and enhanced visual appeal
 - **Enhanced Upload Experience**: Interactive progress modal with real-time step tracking during document upload
 - **Improved Main Dashboard**: Redesigned homepage with feature cards, gradient text effects, and modern navigation
 - **Advanced Search Interface**: Enhanced search page with collapsible filter panels and improved result display
-- **Visual Progress Feedback**: Users now see detailed progress during upload process with animated step indicators
-- **Enhanced Search Capabilities**: Comprehensive filtering system with metadata-based search options
-- **Advanced Filter Integration**: Users can filter by data type, gender, data source, price range, and file type
-- **Combined Search & Filter**: Endpoint that combines semantic search with metadata filtering for precise document discovery
 
 ## Features
 
@@ -25,7 +28,11 @@ Bio-Block is a decentralized document management system that leverages blockchai
 - **Interactive Upload Process**: Step-by-step progress modal showing real-time upload status with visual indicators
 - **Document Upload**: Upload documents to IPFS with secure, decentralized storage
 - **Enhanced Data Collection**: Comprehensive metadata collection including dataset title, disease tags, data type (Personal/Institution), demographics, and data source
-- **Document Anonymization**: Automatic PHI anonymization for Excel files with wallet-based hashing for personal data
+- **Advanced Document Anonymization**: 
+  - **Excel Files**: Automatic PHI anonymization with wallet-based hashing for personal data
+  - **Image Files**: OCR + NLP-based PHI detection and masking for medical images (JPEG, PNG)
+  - **Dual-Backend Processing**: Smart routing - Excel files to JavaScript backend, images to Python backend
+- **Supported File Types**: Streamlined support for Excel (.xlsx, .xls) and image files (.jpg, .jpeg, .png) only
 - **Blockchain Verification**: Store document hashes on the Ethereum blockchain for tamper-proof verification
 - **Advanced Search & Filtering**: Find documents using natural language queries with vector search and comprehensive metadata filtering
 - **Enhanced User Dashboard**: Complete dashboard with modern design to view earnings, withdraw funds, and manage documents
@@ -52,21 +59,21 @@ healthy/
 │   │   ├── encryptionUtils.js # Document encryption utilities
 │   │   └── DocumentStorage.sol # Smart contract source
 │   └── package.json
+├── python_backend/           # FastAPI service
+│   ├── main.py               # ChromaDB, search endpoints, and image PHI anonymization
+│   ├── requirements.txt
+│   ├── vercel.json           # Vercel deployment config
+│   └── chroma_db/            # Local ChromaDB storage
 ├── javascript_backend/        # Express.js API server
 │   ├── controllers/          # Business logic controllers
-│   │   ├── anonymizeController.js # File anonymization logic
+│   │   ├── anonymizeController.js # Excel file anonymization logic
 │   │   └── healthController.js    # Health check logic
 │   ├── routes/              # API route definitions
-│   │   ├── anonymize.js     # Anonymization routes
+│   │   ├── anonymize.js     # Excel anonymization routes
 │   │   └── health.js        # Health check routes
 │   ├── server.js            # Main server file
 │   ├── vercel.json          # Vercel deployment config
 │   └── package.json
-├── python_backend/           # FastAPI service
-│   ├── main.py               # ChromaDB and search endpoints
-│   ├── requirements.txt
-│   ├── vercel.json           # Vercel deployment config
-│   └── chroma_db/            # Local ChromaDB storage
 ├── testing/                  # Test files and utilities
 └── README.md
 ```
@@ -89,7 +96,7 @@ The project consists of multiple components:
 - RESTful API with organized MVC structure
 - Controllers for business logic separation
 - Route handlers for API endpoints
-- File upload handling with multer for Excel anonymization
+- **Excel File Processing**: File upload handling with multer for Excel anonymization
 - Wallet-based anonymization for personal data types
 - CORS enabled for cross-origin requests
 
@@ -97,6 +104,20 @@ The project consists of multiple components:
 - Text embedding service using ChromaDB
 - Document search functionality with similarity scoring
 - Vector storage and retrieval for semantic search
+- **Image PHI Anonymization**: OCR + NLP processing for medical images
+- Tesseract OCR for text extraction from images
+- spaCy NLP for medical entity recognition and masking
+
+**Updated Dependencies (requirements.txt):**
+- `fastapi` - Web framework
+- `uvicorn[standard]` - ASGI server
+- `chromadb` - Vector database
+- `opencv-python` - Computer vision library
+- `pytesseract` - Tesseract OCR wrapper
+- `spacy` - Natural language processing
+- `numpy` - Numerical computing
+- `Pillow` - Image processing library
+- `python-multipart` - File upload handling
 
 ### Smart Contracts (Solidity)
 - Document verification on Ethereum blockchain
@@ -112,6 +133,17 @@ The project consists of multiple components:
 - Python (v3.8+)
 - MetaMask or other Ethereum wallet
 - Access to Ethereum testnet (Sepolia)
+
+### Python Backend Dependencies
+The Python backend requires additional system-level dependencies for image PHI anonymization:
+
+- **Tesseract OCR**: Text extraction from images
+  - Windows: Download installer from GitHub
+  - macOS: Install via Homebrew
+  - Linux: Install via package manager
+- **spaCy English Model**: Natural language processing for medical entity recognition
+- **OpenCV**: Image processing and computer vision
+- **PIL/Pillow**: Python image processing library
 
 ### Installation
 
@@ -158,6 +190,18 @@ The project consists of multiple components:
    cd ../python_backend
    pip install -r requirements.txt
    ```
+
+6. **Install additional dependencies for image PHI anonymization**
+   
+   **Download spaCy English model:**
+   ```bash
+   python -m spacy download en_core_web_sm
+   ```
+   
+   **Install Tesseract OCR:**
+   - **Windows**: Download from [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki)
+   - **macOS**: `brew install tesseract`
+   - **Linux**: `sudo apt install tesseract-ocr`
 
 ### Running the Application
 
@@ -222,8 +266,13 @@ The project consists of multiple components:
 - `GET /` - Health check and API information
 - `POST /store` - Store document summaries and metadata in ChromaDB
 - `POST /search` - Search documents using natural language queries
-- `POST /filter` - Filter documents by metadata criteria (data type, gender, data source, price range, file type)
+- `POST /filter` - Filter documents by metadata criteria (data type, gender, data source, file type)
 - `POST /search_with_filter` - Combined semantic search with metadata filtering
+- `POST /anonymize_image` - Anonymize PHI in medical images
+  - Input: Image file (.jpg, .jpeg, .png) via multipart form data
+  - Optional: Wallet address for personal data anonymization
+  - Output: Anonymized image with PHI text masked/removed
+  - Uses: Tesseract OCR + spaCy NLP for medical entity detection
 - Returns similarity scores, document metadata, and summaries
 
 ### Example API Usage
@@ -248,6 +297,11 @@ curl -X POST https://bioblock-python-backend.onrender.com/filter \
 curl -X POST https://bioblock-python-backend.onrender.com/search_with_filter \
   -H "Content-Type: application/json" \
   -d '{"query": "diabetes research", "filters": {"dataType": "Institution", "dataSource": "Hospital"}, "n_results": 5}'
+
+# Anonymize medical image (multipart form data)
+curl -X POST https://bioblock-python-backend.onrender.com/anonymize_image \
+  -F "file=@medical_scan.jpg" \
+  -F "walletAddress=0x1234..."
 ```
 
 ## Environment Configuration
@@ -270,7 +324,7 @@ The document upload system has been significantly enhanced with both comprehensi
 - **Real-time Status Updates**: Each upload stage is clearly displayed with progress indicators
 - **Six-Step Process Visualization**:
   1. 📁 Preparing file
-  2. 🔄 Anonymizing data (for Excel files)
+  2. 🔄 Anonymizing data (for Excel/Image files)
   3. 🔒 Encrypting file
   4. 📤 Uploading to IPFS
   5. ⛓️ Storing on blockchain
@@ -283,16 +337,10 @@ The document upload system has been significantly enhanced with both comprehensi
 - **Description**: Detailed content description
 - **Disease Tags**: Medical condition tags (e.g., cancer, diabetes, heart disease)
 - **Data Type**: Personal or Institution
-- **Gender**: 
-  - Personal: Male, Female, Prefer not to say
-  - Institution: Male, Female, Mixed
-- **Age Information**:
-  - Personal: Specific age
-  - Institution: Age range (0-18, 19-30, 31-45, 46-60, 61-75, 76+, Mixed)
+- **Gender** (Optional): Male, Female, Other
 - **Data Source**: Hospital, Clinic, Laboratory, Research Institution, Medical Device, Electronic Health Record, Patient Self-Reported, Insurance Claims, Other
 - **Price**: ETH price for document access
-
-### Data Processing
+- **File Types**: Excel (.xlsx, .xls) and Images (.jpg, .jpeg, .png) only### Data Processing
 All collected metadata is formatted and sent to the Python backend as:
 ```
 Dataset Title: {user input}
@@ -305,8 +353,14 @@ Data Source: {user selection}
 ```
 
 ### Anonymization Logic
-- **Personal Data**: Uses wallet address for consistent anonymization across all patient data
-- **Institution Data**: Uses standard anonymization methods without wallet dependency
+- **Excel Files**: 
+  - Personal Data: Uses wallet address for consistent anonymization across all patient data
+  - Institution Data: Uses standard anonymization methods without wallet dependency
+- **Image Files**: 
+  - OCR text extraction using Tesseract
+  - NLP entity recognition using spaCy for medical terms
+  - Automatic masking of detected PHI (names, dates, addresses, phone numbers, medical IDs)
+  - Maintains image quality while removing sensitive information
 
 ## Advanced Search & Filtering System
 
@@ -319,10 +373,9 @@ The platform features a sophisticated search system that combines semantic searc
 
 ### Available Filters
 - **Data Type**: Personal or Institution
-- **Gender**: Male, Female, Mixed, Prefer not to say
+- **Gender**: Male, Female, Other
 - **Data Source**: Hospital, Clinic, Laboratory, Research Institution, Medical Device, Electronic Health Record, Patient Self-Reported, Insurance Claims, Other
-- **Price Range**: Custom ETH price ranges
-- **File Type**: Various document formats
+- **File Type**: Excel (XLSX, XLS) and Images (JPEG, PNG)
 
 ### Search Endpoints
 - `/search` - Semantic search with natural language queries
@@ -335,7 +388,10 @@ The platform features a sophisticated search system that combines semantic searc
 2. **Document Upload**: Users upload files through the enhanced React interface with comprehensive metadata collection
 3. **Interactive Progress**: Real-time progress modal shows each step of the upload process with visual indicators
 4. **Data Collection**: Enhanced form collects dataset title, description, disease tags, data type, demographics, and data source
-5. **File Anonymization**: For personal data types, wallet address is used for anonymization; institutions use standard methods
+5. **File Processing**: Smart routing - Excel files to JavaScript backend for Excel anonymization, image files to Python backend for OCR + NLP processing
+6. **PHI Anonymization**: 
+   - Excel: Standard cell-based anonymization with wallet-based hashing for personal data
+   - Images: OCR text extraction + spaCy NLP entity recognition with automatic masking
 6. **IPFS Storage**: Files are encrypted and stored on IPFS using Pinata service with progress tracking
 7. **Blockchain Recording**: Document hashes are stored on Ethereum for verification with transaction feedback
 8. **Vector Embedding**: Document summaries with metadata are converted to vectors and stored in ChromaDB
@@ -364,8 +420,10 @@ The project uses a smart contract (`DocumentStorage.sol`) deployed on the Ethere
 - File encryption/decryption for secure document handling
 - Secure wallet integration
 - Advanced document anonymization with data type-specific handling
-- Personal data anonymization using wallet-based hashing
-- Advanced document search with multiple filter options (data type, gender, data source, price range, file type)
+- **Excel Files**: Personal data anonymization using wallet-based hashing
+- **Image Files**: OCR + NLP-based PHI detection and masking using Tesseract and spaCy
+- **Dual-Backend Architecture**: Smart file routing for optimized processing
+- Advanced document search with multiple filter options (data type, gender, data source, file type)
 - Hash-based file naming for download security
 - Interactive progress tracking with secure step-by-step validation
 - Enhanced UI security with modern design patterns and user feedback systems
