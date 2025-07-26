@@ -27,13 +27,23 @@ app.add_middleware(
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="new_user_data")
 
+# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+
 try:
     nlp = spacy.load("en_core_web_sm")
 except IOError:
     print("Warning: spaCy English model not found. Image anonymization will not work.")
     nlp = None
 
-PHI_LABELS = {"PERSON", "ORG", "GPE", "DATE", "TIME"}
+
+try:
+    pytesseract.get_tesseract_version()
+    tesseract_available = True
+except Exception:
+    print("Warning: Tesseract OCR not found. Image anonymization will not work.")
+    tesseract_available = False
+
+PHI_LABELS = {"PERSON", "ORG", "GPE", "DATE", "LOC", "FAC", "NORP"}
 
 class StoreRequest(BaseModel):
     summary: str
@@ -58,32 +68,29 @@ def mask_phi_in_image(image_cv):
     Detect and mask PHI (Personal Health Information) in an image using OCR and NLP
     """
     if nlp is None:
-        raise HTTPException(status_code=500, detail="NLP model not available for image anonymization")
+        raise HTTPException(status_code=500, detail="spaCy English model not available. Please install it with: python -m spacy download en_core_web_sm")
+    
+    if not tesseract_available:
+        raise HTTPException(status_code=500, detail="Tesseract OCR not available. Please install Tesseract: Windows: Download from https://github.com/UB-Mannheim/tesseract/wiki, macOS: brew install tesseract, Linux: sudo apt install tesseract-ocr")
     
     try:
-     
-        ocr_data = pytesseract.image_to_data(image_cv, output_type=Output.DICT)
+        # Convert BGR to RGB for OCR processing
+        rgb_image = cv2.cvtColor(image_cv, cv2.COLOR_BGR2RGB)
         
-        n_boxes = len(ocr_data['text'])
-        boxes = []
-        full_text = ""
- 
-        for i in range(n_boxes):
-            word = ocr_data['text'][i].strip()
-            if word != "":
-                x, y, w, h = ocr_data['left'][i], ocr_data['top'][i], ocr_data['width'][i], ocr_data['height'][i]
-                full_text += word + " "
-                boxes.append((word, x, y, w, h))
-   
+        
+        ocr_data = pytesseract.image_to_data(rgb_image, output_type=Output.DICT)
+        
+        full_text = " ".join(ocr_data["text"])
+        
         doc = nlp(full_text)
         
-        for ent in doc.ents:
-            if ent.label_ in PHI_LABELS:
-                for word, x, y, w, h in boxes:
-                    if ent.text.strip().startswith(word):
-                 
-                        cv2.rectangle(image_cv, (x, y), (x + w, y + h), (0, 0, 0), -1)
-                        break
+        phi_entities = set(ent.text.strip() for ent in doc.ents if ent.label_ in PHI_LABELS)
+        
+       
+        for i, word in enumerate(ocr_data["text"]):
+            if word.strip() in phi_entities:
+                x, y, w, h = ocr_data["left"][i], ocr_data["top"][i], ocr_data["width"][i], ocr_data["height"][i]
+                cv2.rectangle(image_cv, (x, y), (x + w, y + h), (0, 0, 0), -1)
         
         return image_cv
         
