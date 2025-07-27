@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Filter, ArrowLeft, Download, ShoppingCart, Eye, FileText, Calendar, DollarSign, User, Building, X } from 'lucide-react';
+import { Search, Filter, ArrowLeft, Download, ShoppingCart, Eye, FileText, Calendar, User, Building, X } from 'lucide-react';
 import { decryptFile } from './encryptionUtils';
 import { purchaseDocument, getDocumentPrice } from './contractService';
 
@@ -17,7 +17,6 @@ export default function SearchData({ onBack }) {
     gender: '',
     ageRange: '',
     dataSource: '',
-    priceRange: '',
     fileType: ''
   });
   const [useFilters, setUseFilters] = useState(false);
@@ -104,10 +103,6 @@ export default function SearchData({ onBack }) {
       filterObj['fileType'] = filters.fileType;
     }
     
-    if (filters.priceRange) {
-      filterObj['priceRange'] = filters.priceRange;
-    }
-    
     return filterObj;
   };
 
@@ -117,7 +112,6 @@ export default function SearchData({ onBack }) {
       gender: '',
       ageRange: '',
       dataSource: '',
-      priceRange: '',
       fileType: ''
     });
     setUseFilters(false);
@@ -313,8 +307,7 @@ export default function SearchData({ onBack }) {
                     <option value="">All Genders</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
-                    <option value="Mixed">Mixed</option>
-                    <option value="Prefer not to say">Prefer not to say</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
                 
@@ -360,38 +353,10 @@ export default function SearchData({ onBack }) {
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all duration-200"
                   >
                     <option value="">All Types</option>
-                    <option value="application/pdf">PDF</option>
-                    <option value="application/vnd.openxmlformats-officedocument.wordprocessingml.document">DOCX</option>
-                    <option value="application/msword">DOC</option>
-                    <option value="text/plain">TXT</option>
-                    <option value="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">XLSX</option>
-                    <option value="application/vnd.ms-excel">XLS</option>
-                    <option value="text/csv">CSV</option>
-                    <option value="application/json">JSON</option>
-                  </select>
-                </div>
-                
-                {/* Price Range Filter */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                    <DollarSign size={16} className="text-green-600" />
-                    Price Range (ETH)
-                  </label>
-                  <select
-                    value={filters.priceRange}
-                    onChange={(e) => {
-                      setFilters({...filters, priceRange: e.target.value});
-                      setUseFilters(true);
-                    }}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all duration-200"
-                  >
-                    <option value="">All Prices</option>
-                    <option value="0-0.01">0 - 0.01 ETH</option>
-                    <option value="0.01-0.05">0.01 - 0.05 ETH</option>
-                    <option value="0.05-0.1">0.05 - 0.1 ETH</option>
-                    <option value="0.1-0.5">0.1 - 0.5 ETH</option>
-                    <option value="0.5-1">0.5 - 1 ETH</option>
-                    <option value="1-999">1+ ETH</option>
+                    <option value="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">Excel (XLSX)</option>
+                    <option value="application/vnd.ms-excel">Excel (XLS)</option>
+                    <option value="image/jpeg">JPEG Image</option>
+                    <option value="image/png">PNG Image</option>
                   </select>
                 </div>
               </div>

@@ -73,7 +73,7 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
   const [uploadProgress, setUploadProgress] = useState({
     steps: [
       { name: 'Preparing file...', completed: false, error: false },
-      { name: 'Anonymizing data (if Excel)...', completed: false, error: false },
+      { name: 'Anonymizing data (if Excel/Image)...', completed: false, error: false },
       { name: 'Encrypting file...', completed: false, error: false },
       { name: 'Uploading to IPFS...', completed: false, error: false },
       { name: 'Storing on blockchain...', completed: false, error: false },
@@ -104,7 +104,7 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
     setUploadProgress({
       steps: [
         { name: 'Preparing file...', completed: false, error: false },
-        { name: 'Anonymizing data (if Excel)...', completed: false, error: false },
+        { name: 'Anonymizing data (if Excel/Image)...', completed: false, error: false },
         { name: 'Encrypting file...', completed: false, error: false },
         { name: 'Uploading to IPFS...', completed: false, error: false },
         { name: 'Storing on blockchain...', completed: false, error: false },
@@ -165,19 +165,33 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
     const formData = new FormData();
     formData.append('file', file);
     
-    // For personal data, use wallet address for hashing
     if (dataType === 'Personal') {
       formData.append('walletAddress', walletAddress);
     }
 
-    const jsBackendUrl =process.env.REACT_APP_JS_BACKEND_URL || 'http://localhost:3001/api';
-    const response = await fetch(`${jsBackendUrl}/anonymize`, {
+    let backendUrl, endpoint;
+    
+    if (file.type.startsWith('image/')) {
+  
+      backendUrl = process.env.REACT_APP_PYTHON_BACKEND_URL || 'http://localhost:3002';
+      endpoint = '/anonymize_image';
+    } else if (file.name.match(/\.(xlsx|xls)$/i)) {
+      
+      backendUrl = process.env.REACT_APP_JS_BACKEND_URL || 'http://localhost:3001';
+      endpoint = '/anonymize';
+    } else {
+     
+      throw new Error('File type not supported for anonymization. Only Excel (.xlsx, .xls) and image files (.jpg, .jpeg, .png) are supported.');
+    }
+
+    const response = await fetch(`${backendUrl}${endpoint}`, {
       method: 'POST',
       body: formData
     });
 
     if (!response.ok) {
-      throw new Error('File anonymization failed');
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || errorData.error || 'File anonymization failed');
     }
 
     const blob = await response.blob();
@@ -215,11 +229,6 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
       return;
     }
 
-    if (!gender) {
-      alert('Please select gender');
-      return;
-    }
-
     if (!dataSource) {
       alert('Please select data source');
       return;
@@ -241,9 +250,9 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
       let fileToUpload = selectedFile;
       updateStep(0, true); // Mark as completed
       
-      // Step 2: Anonymizing (if Excel)
+      // Step 2: Anonymizing (if Excel or Image)
       updateStep(1); // Mark as in progress
-      if (selectedFile.name.match(/\.(xlsx|xls)$/i)) {
+      if (selectedFile.name.match(/\.(xlsx|xls)$/i) || selectedFile.type.startsWith('image/')) {
         try {
           fileToUpload = await anonymizeFile(selectedFile);
           updateStep(1, true, false); // Mark as completed
@@ -253,8 +262,10 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
           return;
         }
       } else {
-        await new Promise(resolve => setTimeout(resolve, 300)); // Small delay for non-Excel files
-        updateStep(1, true, false); // Skip anonymization for non-Excel files
+        // File type not supported - this should not happen due to file input restrictions
+        updateStep(1, false, true); // Mark as error
+        setError('File type not supported for upload. Only Excel and image files are accepted.');
+        return;
       }
       
       // Step 3: Encrypting file
@@ -280,12 +291,10 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
           ipfsHash: result.hash
         }));
         
-        // Step 5: Storing on blockchain
-        updateStep(4); // Mark as in progress
+        updateStep(4); 
         const txHash = await storeDocumentHash(result.hash, price);
-        updateStep(4, true, false); // Mark as completed
+        updateStep(4, true, false); 
         
-        // Update progress with transaction hash and price
         setUploadProgress(prev => ({
           ...prev,
           transactionHash: txHash,
@@ -425,7 +434,7 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
                     onChange={handleFileChange}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     id="file-upload"
-                    accept=".pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.json"
+                    accept=".xlsx,.xls,.jpg,.jpeg,.png"
                     disabled={!isWalletConnected}
                   />
                   
@@ -434,7 +443,7 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
                       {selectedFile ? selectedFile.name : 'Choose a file or drag and drop'}
                     </p>
                     <p className={`${isWalletConnected ? 'text-gray-500' : 'text-gray-400'} text-sm`}>
-                      PDF, DOC, DOCX, TXT, EXCEL, CSV, JSON
+                      EXCEL (XLSX, XLS) and Images (JPG, JPEG, PNG) only
                     </p>
                   </div>
                 </div>
@@ -576,7 +585,7 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
                 {/* Gender */}
                 <div>
                   <label htmlFor="gender" className="block text-sm font-semibold text-gray-800 mb-2">
-                    👤 Gender *
+                    👤 Gender
                   </label>
                   <select
                     id="gender"
@@ -585,20 +594,10 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
                     className={`w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${!isWalletConnected ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
                     disabled={!isWalletConnected}
                   >
-                    <option value="">Select gender</option>
-                    {dataType === 'Personal' ? (
-                      <>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Prefer not to say">Prefer not to say</option>
-                      </>
-                    ) : (
-                      <>
-                        <option value="Male">Male</option>
-                        <option value="Female">Female</option>
-                        <option value="Mixed">Mixed</option>
-                      </>
-                    )}
+                    <option value="">Select gender (optional)</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
 
@@ -674,7 +673,7 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
               {/* Upload Button */}
               <button
                 onClick={handleUpload}
-                disabled={!selectedFile || !isWalletConnected || !datasetTitle.trim() || !summary.trim() || !diseaseTags.length || !dataType || !gender || !dataSource || !price || parseFloat(price) <= 0 || isUploading}
+                disabled={!selectedFile || !isWalletConnected || !datasetTitle.trim() || !summary.trim() || !diseaseTags.length || !dataType || !dataSource || !price || parseFloat(price) <= 0 || isUploading}
                 className="w-full px-6 py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-2xl hover:from-green-700 hover:to-emerald-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none font-semibold text-lg"
               >
                 {isUploading ? (
