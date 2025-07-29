@@ -165,6 +165,42 @@ export default function SearchData({ onBack }) {
     }
   };
 
+  const handlePreviewDownload = async (result, index) => {
+    const previewHash = result.metadata?.previewHash;
+    if (!previewHash) return;
+
+    const previewKey = `preview_${index}`;
+    setDownloading(prev => ({ ...prev, [previewKey]: true }));
+    
+    try {
+      const response = await fetch(`https://gateway.pinata.cloud/ipfs/${previewHash}`);
+      const encryptedData = await response.text();
+      
+      const decryptedData = decryptFile(encryptedData);
+      const bytes = new Uint8Array(atob(decryptedData).split('').map(char => char.charCodeAt(0)));
+      
+      const blob = new Blob([bytes], { type: result.metadata?.fileType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = URL.createObjectURL(blob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      const originalName = result.metadata?.fileName || `document_${index + 1}`;
+      const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+      const extension = originalName.split('.').pop();
+      a.download = `preview_${nameWithoutExt}.${extension}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error('Preview Download Error:', error);
+      alert(`Error downloading preview: ${error.message}`);
+    } finally {
+      setDownloading(prev => ({ ...prev, [previewKey]: false }));
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
       {/* Enhanced Header with Gradient */}
@@ -508,10 +544,37 @@ export default function SearchData({ onBack }) {
                                 🔐 {result.metadata.dataType}
                               </span>
                             )}
+                            {result.metadata?.previewHash && (
+                              <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                                👁️ Preview Available
+                              </span>
+                            )}
                           </div>
                           
-                          {/* Action Button */}
-                          <div className="flex justify-end pt-4 border-t border-gray-200">
+                          {/* Action Buttons */}
+                          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                            {/* Preview Button for Excel files */}
+                            {result.metadata?.previewHash && result.metadata?.fileType?.includes('spreadsheet') && (
+                              <button
+                                onClick={() => handlePreviewDownload(result, index)}
+                                disabled={downloading[index]}
+                                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 disabled:transform-none font-medium"
+                              >
+                                {downloading[`preview_${index}`] ? (
+                                  <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Downloading Preview...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Eye className="w-4 h-4" />
+                                    Preview (5%)
+                                  </>
+                                )}
+                              </button>
+                            )}
+                            
+                            {/* Purchase & Download Button */}
                             {(result.cid || result.ipfsHash || result.hash) && (
                               <button
                                 onClick={() => handlePurchaseAndDownload(result, index)}

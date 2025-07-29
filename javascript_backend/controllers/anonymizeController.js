@@ -46,10 +46,12 @@ const anonymizeFile = async (req, res) => {
         }
 
         const walletAddress = req.body.walletAddress;
+        const generatePreview = req.body.generatePreview === 'true';
         const isPersonalData = !!walletAddress;
 
         console.log('Processing anonymization:', { 
             isPersonalData, 
+            generatePreview,
             walletAddress: walletAddress ? `${walletAddress.substring(0, 6)}...` : 'N/A' 
         });
 
@@ -202,6 +204,55 @@ const anonymizeFile = async (req, res) => {
             type: 'buffer' 
         });
 
+        // Generate preview if requested
+        if (generatePreview) {
+            const previewWorkbook = XLSX.utils.book_new();
+            
+            cleanedWorkbook.SheetNames.forEach(sheetName => {
+                const worksheet = cleanedWorkbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                if (jsonData.length === 0) {
+                    XLSX.utils.book_append_sheet(previewWorkbook, worksheet, sheetName);
+                    return;
+                }
+                
+                // Calculate 5% of rows (minimum 5 rows, maximum 50 rows)
+                const totalRows = jsonData.length;
+                const previewRows = Math.max(5, Math.min(50, Math.ceil(totalRows * 0.05)));
+                
+                // Extract first 5% of anonymized data including headers
+                const previewData = jsonData.slice(0, previewRows);
+                
+                const previewWorksheet = XLSX.utils.aoa_to_sheet(previewData);
+                XLSX.utils.book_append_sheet(previewWorkbook, previewWorksheet, sheetName);
+            });
+
+            const previewBuffer = XLSX.write(previewWorkbook, { 
+                bookType: 'xlsx', 
+                type: 'buffer' 
+            });
+
+            // Return both files as JSON response
+            const timestamp = Date.now();
+            return res.json({
+                success: true,
+                files: {
+                    main: {
+                        buffer: outputBuffer.toString('base64'),
+                        filename: `phi_anonymized_${timestamp}.xlsx`,
+                        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    },
+                    preview: {
+                        buffer: previewBuffer.toString('base64'),
+                        filename: `preview_${timestamp}.xlsx`,
+                        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    }
+                }
+            });
+        }
+
+        // Standard response for normal anonymization without preview
         const timestamp = Date.now();
         const filename = `phi_anonymized_${timestamp}.xlsx`;
         

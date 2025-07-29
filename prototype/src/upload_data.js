@@ -15,7 +15,6 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
   const [price, setPrice] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
-  // Available disease options
   const diseaseOptions = [
     'Cancer',
     'Diabetes',
@@ -169,18 +168,21 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
       formData.append('walletAddress', walletAddress);
     }
 
+    // Request preview generation for Excel files
+    const shouldGeneratePreview = file.name.match(/\.(xlsx|xls)$/i);
+    if (shouldGeneratePreview) {
+      formData.append('generatePreview', 'true');
+    }
+
     let backendUrl, endpoint;
     
     if (file.type.startsWith('image/')) {
-  
       backendUrl = process.env.REACT_APP_PYTHON_BACKEND_URL || 'http://localhost:3002';
       endpoint = '/anonymize_image';
     } else if (file.name.match(/\.(xlsx|xls)$/i)) {
-      
       backendUrl = process.env.REACT_APP_JS_BACKEND_URL || 'http://localhost:3001';
       endpoint = '/anonymize';
     } else {
-     
       throw new Error('File type not supported for anonymization. Only Excel (.xlsx, .xls) and image files (.jpg, .jpeg, .png) are supported.');
     }
 
@@ -194,8 +196,29 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
       throw new Error(errorData.detail || errorData.error || 'File anonymization failed');
     }
 
-    const blob = await response.blob();
-    return new File([blob], `anonymized_${file.name}`, { type: file.type });
+    // Handle different response types
+    if (shouldGeneratePreview && response.headers.get('content-type')?.includes('application/json')) {
+      // Response contains both main file and preview
+      const jsonResponse = await response.json();
+      
+      // Convert base64 back to File objects
+      const mainFileBuffer = Uint8Array.from(atob(jsonResponse.files.main.buffer), c => c.charCodeAt(0));
+      const mainFile = new File([mainFileBuffer], jsonResponse.files.main.filename, { 
+        type: jsonResponse.files.main.contentType 
+      });
+
+      const previewFileBuffer = Uint8Array.from(atob(jsonResponse.files.preview.buffer), c => c.charCodeAt(0));
+      const previewFile = new File([previewFileBuffer], jsonResponse.files.preview.filename, { 
+        type: jsonResponse.files.preview.contentType 
+      });
+
+      return { mainFile, previewFile };
+    } else {
+      // Standard blob response for images or Excel without preview
+      const blob = await response.blob();
+      const mainFile = new File([blob], `anonymized_${file.name}`, { type: file.type });
+      return { mainFile, previewFile: null };
+    }
   };
 
   const handleUpload = async () => {
@@ -248,13 +271,16 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
       updateStep(0); // Mark as in progress
       await new Promise(resolve => setTimeout(resolve, 500)); // Small delay to show progress
       let fileToUpload = selectedFile;
+      let previewFile = null;
       updateStep(0, true); // Mark as completed
       
-      // Step 2: Anonymizing (if Excel or Image)
+      // Step 2: Anonymizing (if Excel or Image) and extracting preview
       updateStep(1); // Mark as in progress
       if (selectedFile.name.match(/\.(xlsx|xls)$/i) || selectedFile.type.startsWith('image/')) {
         try {
-          fileToUpload = await anonymizeFile(selectedFile);
+          const result = await anonymizeFile(selectedFile);
+          fileToUpload = result.mainFile;
+          previewFile = result.previewFile; // Will be null for images, populated for Excel
           updateStep(1, true, false); // Mark as completed
         } catch (error) {
           updateStep(1, false, true); // Mark as error
@@ -303,6 +329,22 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
         
         // Step 6: Saving metadata
         updateStep(5); // Mark as in progress
+        
+        let previewHash = null;
+        // Upload preview to IPFS if it exists
+        if (previewFile) {
+          try {
+            const previewBuffer = await previewFile.arrayBuffer();
+            const encryptedPreview = encryptFile(new Uint8Array(previewBuffer));
+            const previewResult = await uploadToIPFS(encryptedPreview);
+            if (previewResult.success) {
+              previewHash = previewResult.hash;
+            }
+          } catch (error) {
+            console.warn('Preview upload failed, continuing without preview:', error);
+          }
+        }
+        
         const metadata = {
           fileName: fileToUpload.name,
           fileSize: fileToUpload.size,
@@ -315,6 +357,7 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
           dataType: dataType,
           gender: gender,
           dataSource: dataSource,
+          ...(previewHash && { previewHash: previewHash }),
           ...(diseaseTags.length && { disease_tags: diseaseTags.join(', ') })
         };
 
