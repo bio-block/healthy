@@ -8,8 +8,12 @@ Bio-Block is a decentralized document management system that leverages blockchai
 - **Python Backend**: [https://bioblock-python-backend.onrender.com](https://bioblock-python-backend.onrender.com)
 - **JavaScript Backend**: [https://bioblock-js-backend.onrender.com](https://bioblock-js-backend.onrender.com)
 
-## Recent Updates (ImagePHIremoval Branch)
+## Recent Updates (previewFile Branch)
 
+- **Excel Preview Feature**: New preview functionality that generates 5% sample data from anonymized Excel files for user evaluation before purchase
+- **Integrated Preview Generation**: Preview is extracted from already anonymized data ensuring consistency and efficiency
+- **Free Preview Downloads**: Users can download Excel previews without payment or wallet connection to evaluate data structure
+- **Preview Visual Indicators**: Search results show "Preview Available" badges and dedicated preview download buttons for Excel files
 - **Image PHI Anonymization**: New OCR + NLP-based anonymization for medical images (JPEG, PNG) using Tesseract OCR and spaCy NLP
 - **Dual-Backend Architecture**: Smart routing system - Excel files to JavaScript backend (port 3001), image files to Python backend (port 3002)
 - **Enhanced File Support**: Streamlined to support only Excel (.xlsx, .xls) and image files (.jpg, .jpeg, .png) with PHI removal capabilities
@@ -29,16 +33,18 @@ Bio-Block is a decentralized document management system that leverages blockchai
 - **Document Upload**: Upload documents to IPFS with secure, decentralized storage
 - **Enhanced Data Collection**: Comprehensive metadata collection including dataset title, disease tags, data type (Personal/Institution), demographics, and data source
 - **Advanced Document Anonymization**: 
-  - **Excel Files**: Automatic PHI anonymization with wallet-based hashing for personal data
+  - **Excel Files**: Automatic PHI anonymization with wallet-based hashing for personal data and integrated 5% preview generation
   - **Image Files**: OCR + NLP-based PHI detection and masking for medical images (JPEG, PNG)
   - **Dual-Backend Processing**: Smart routing - Excel files to JavaScript backend, images to Python backend
+  - **Preview Generation**: Free 5% sample extraction from anonymized Excel data for evaluation before purchase
 - **Supported File Types**: Streamlined support for Excel (.xlsx, .xls) and image files (.jpg, .jpeg, .png) only
 - **Blockchain Verification**: Store document hashes on the Ethereum blockchain for tamper-proof verification
 - **Advanced Search & Filtering**: Find documents using natural language queries with vector search and comprehensive metadata filtering
 - **Enhanced User Dashboard**: Complete dashboard with modern design to view earnings, withdraw funds, and manage documents
 - **Document Management**: View all uploaded documents with improved pricing and download capabilities
 - **Document Downloads**: Direct download of owned documents with original encryption/decryption
-- **Document Marketplace**: Set prices for documents and earn from document purchases
+- **Document Marketplace**: Set prices for documents and earn from document purchases with preview functionality for Excel files
+- **Excel Preview System**: Free preview downloads showing 5% sample of anonymized Excel data for informed purchase decisions
 - **Earnings Tracking**: Real-time earnings display and withdrawal functionality
 - **Wallet Integration**: Seamless connection with Ethereum wallets (like MetaMask)
 - **Environment Flexibility**: Easy switching between local and production environments
@@ -253,10 +259,11 @@ The Python backend requires additional system-level dependencies for image PHI a
 
 - `GET /` - Root endpoint with API information
 - `GET /api/health` - Health check endpoint to verify server status
-- `POST /api/anonymize` - Anonymize PHI (Personal Health Information) in Excel files
+- `POST /api/anonymize` - Anonymize PHI (Personal Health Information) in Excel files with optional preview generation
   - Input: Excel file (.xlsx or .xls) via multipart form data
   - Optional: Wallet address for personal data anonymization
-  - Output: Anonymized Excel file with appropriate ID generation
+  - Optional: `generatePreview=true` parameter to create 5% sample preview
+  - Output: Full anonymized Excel file, and preview file (if requested) containing first 5% of rows (min 5, max 50)
 - Organized with MVC architecture (controllers and routes)
 
 ### Python Backend (FastAPI)
@@ -356,6 +363,8 @@ Data Source: {user selection}
 - **Excel Files**: 
   - Personal Data: Uses wallet address for consistent anonymization across all patient data
   - Institution Data: Uses standard anonymization methods without wallet dependency
+  - **Preview Generation**: Extracts first 5% of rows from already anonymized data (minimum 5 rows, maximum 50 rows)
+  - **Integrated Processing**: Preview generated during anonymization process for efficiency and consistency
 - **Image Files**: 
   - OCR text extraction using Tesseract
   - NLP entity recognition using spaCy for medical terms
@@ -382,6 +391,46 @@ The platform features a sophisticated search system that combines semantic searc
 - `/filter` - Pure metadata filtering without text search
 - `/search_with_filter` - Combined semantic and metadata filtering
 
+## Excel Preview System
+
+Bio-Block features an innovative preview system for Excel files that allows users to evaluate data quality and structure before making a purchase decision.
+
+### How Excel Previews Work
+
+1. **Integrated Generation**: During the Excel anonymization process, the system automatically extracts the first 5% of rows from the **already anonymized** data
+2. **Smart Sampling**: Preview contains minimum 5 rows and maximum 50 rows, ensuring useful sample size regardless of file size
+3. **Consistency**: Preview data is identical in anonymization quality to the full file since it's extracted post-anonymization
+4. **Dual Upload**: Both the full anonymized file and the preview file are encrypted and uploaded to IPFS separately
+5. **Free Access**: Users can download previews without payment or wallet connection
+
+### Preview Features
+
+- **📊 Data Structure**: Shows column headers and data types
+- **🔒 Anonymization Quality**: Displays actual anonymized data, not raw PHI
+- **📏 Sample Size**: 5% of total rows (adaptive based on file size)
+- **💰 Free Download**: No ETH payment required for preview access
+- **🎯 Purchase Confidence**: Informed decision-making before buying full dataset
+
+### User Experience
+
+- **Visual Indicators**: Search results show "Preview Available" badges for Excel files
+- **Dedicated Button**: Blue "Preview (5%)" download button alongside purchase button
+- **Instant Download**: Immediate access without MetaMask or transaction confirmation
+- **File Naming**: Preview files are clearly labeled as `preview_{originalFileName}.xlsx`
+
+### Technical Implementation
+
+```javascript
+// Preview generation during anonymization
+if (generatePreview && isExcelFile) {
+  const previewRows = Math.max(5, Math.min(50, Math.ceil(totalRows * 0.05)));
+  const previewData = anonymizedData.slice(0, previewRows);
+  return { mainFile: fullAnonymizedFile, previewFile: previewSample };
+}
+```
+
+The preview system enhances user trust and purchase confidence by providing transparent access to data quality and structure before financial commitment.
+
 ## How It Works
 
 1. **Modern Interface**: Users interact through a beautifully designed interface with glassmorphism effects and gradient backgrounds
@@ -390,17 +439,19 @@ The platform features a sophisticated search system that combines semantic searc
 4. **Data Collection**: Enhanced form collects dataset title, description, disease tags, data type, demographics, and data source
 5. **File Processing**: Smart routing - Excel files to JavaScript backend for Excel anonymization, image files to Python backend for OCR + NLP processing
 6. **PHI Anonymization**: 
-   - Excel: Standard cell-based anonymization with wallet-based hashing for personal data
+   - Excel: Standard cell-based anonymization with wallet-based hashing for personal data and integrated 5% preview generation
    - Images: OCR text extraction + spaCy NLP entity recognition with automatic masking
-6. **IPFS Storage**: Files are encrypted and stored on IPFS using Pinata service with progress tracking
-7. **Blockchain Recording**: Document hashes are stored on Ethereum for verification with transaction feedback
-8. **Vector Embedding**: Document summaries with metadata are converted to vectors and stored in ChromaDB
-9. **Enhanced Search Experience**: Users can search using natural language queries with improved filter interfaces
-10. **Advanced Filtering**: Apply metadata filters through collapsible panels for precise document discovery
-11. **Document Management**: Users can view all their uploaded documents in the modernized dashboard
-12. **Earnings Tracking**: Real-time tracking of earnings from document purchases with enhanced visual display
-13. **Secure Downloads**: Direct download of owned documents with automatic decryption
-14. **Marketplace**: Users can purchase documents from others and earn from their own uploads
+7. **Preview Generation**: For Excel files, 5% sample is extracted from the anonymized data and uploaded separately to IPFS for free evaluation
+8. **IPFS Storage**: Both main files and preview files (if applicable) are encrypted and stored on IPFS using Pinata service with progress tracking
+9. **Blockchain Recording**: Document hashes are stored on Ethereum for verification with transaction feedback
+10. **Vector Embedding**: Document summaries with metadata are converted to vectors and stored in ChromaDB
+11. **Enhanced Search Experience**: Users can search using natural language queries with improved filter interfaces
+12. **Advanced Filtering**: Apply metadata filters through collapsible panels for precise document discovery
+13. **Preview Downloads**: Users can download Excel previews for free to evaluate data structure before purchase
+14. **Document Management**: Users can view all their uploaded documents in the modernized dashboard
+15. **Earnings Tracking**: Real-time tracking of earnings from document purchases with enhanced visual display
+16. **Secure Downloads**: Direct download of owned documents with automatic decryption
+17. **Marketplace**: Users can purchase documents from others and earn from their own uploads
 
 ## Smart Contract
 
@@ -420,13 +471,15 @@ The project uses a smart contract (`DocumentStorage.sol`) deployed on the Ethere
 - File encryption/decryption for secure document handling
 - Secure wallet integration
 - Advanced document anonymization with data type-specific handling
-- **Excel Files**: Personal data anonymization using wallet-based hashing
+- **Excel Files**: Personal data anonymization using wallet-based hashing with secure preview generation
 - **Image Files**: OCR + NLP-based PHI detection and masking using Tesseract and spaCy
 - **Dual-Backend Architecture**: Smart file routing for optimized processing
+- **Preview Security**: Previews generated from already anonymized data ensuring no PHI exposure
 - Advanced document search with multiple filter options (data type, gender, data source, file type)
 - Hash-based file naming for download security
 - Interactive progress tracking with secure step-by-step validation
 - Enhanced UI security with modern design patterns and user feedback systems
+- **Free Preview Access**: No payment or wallet connection required for preview downloads, enabling safe evaluation
 
 ## Deployment
 
