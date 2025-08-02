@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Upload, Wallet, ArrowLeft, Shield, Database, CheckCircle, X, Clock, Check } from 'lucide-react';
-import { uploadToIPFS } from './UploadFile'; 
 import { storeDocumentHash } from './contractService';
 import { encryptFile } from './encryptionUtils.js';
+import StreamingEncryption from './utils/streamingEncryption.js';
 
 export default function UploadData({ onBack, isWalletConnected, walletAddress, onWalletConnect }) {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -69,6 +69,8 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
   // Modal and progress states
   const [showModal, setShowModal] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
+  const [encryptionProgress, setEncryptionProgress] = useState(0);
+  const [isStreamingEncryption, setIsStreamingEncryption] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({
     steps: [
       { name: 'Preparing file...', completed: false, error: false },
@@ -221,6 +223,28 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
     }
   };
 
+  // New hybrid approach: Upload encrypted file to backend for IPFS upload
+  const uploadToIPFSViaBackend = async (encryptedData, fileName) => {
+    const formData = new FormData();
+    formData.append('encryptedFile', new Blob([encryptedData], { type: 'application/octet-stream' }));
+    formData.append('fileName', fileName);
+
+    const backendUrl = process.env.REACT_APP_JS_BACKEND_URL || 'http://localhost:3001';
+    
+    const response = await fetch(`${backendUrl}/ipfs/upload`, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'IPFS upload failed');
+    }
+
+    const result = await response.json();
+    return result;
+  };
+
   const handleUpload = async () => {
     if (!isWalletConnected) {
       alert('Please connect your wallet first');
@@ -294,16 +318,51 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
         return;
       }
       
-      // Step 3: Encrypting file
+      // Step 3: Encrypting file (with streaming for large files)
       updateStep(2); // Mark as in progress
       try {
-        const fileBuffer = await fileToUpload.arrayBuffer();
-        const encryptedFile = encryptFile(new Uint8Array(fileBuffer));
+        const streamer = new StreamingEncryption();
+        
+        console.log(`=== ENCRYPTION DECISION ===`);
+        console.log(`Original file: ${selectedFile.name}, size: ${selectedFile.size} bytes (${(selectedFile.size / (1024*1024)).toFixed(2)}MB)`);
+        console.log(`Anonymized file: ${fileToUpload.name}, size: ${fileToUpload.size} bytes (${(fileToUpload.size / (1024*1024)).toFixed(2)}MB)`);
+        
+        const shouldUseStreaming = streamer.shouldUseStreaming(fileToUpload.size);
+        
+        console.log(`Final decision: streaming = ${shouldUseStreaming}`);
+        console.log(`=== END ENCRYPTION DECISION ===`);
+        
+        let encryptedFile;
+        
+        if (shouldUseStreaming) {
+          // Use streaming encryption for large files
+          console.log(`🔄 Using STREAMING encryption for large file (${(fileToUpload.size / (1024*1024)).toFixed(2)}MB)`);
+          setIsStreamingEncryption(true);
+          setEncryptionProgress(0);
+          
+          encryptedFile = await streamer.encryptFileStream(
+            fileToUpload,
+            (progress) => {
+              setEncryptionProgress(progress);
+              console.log(`Encryption progress: ${progress.toFixed(1)}%`);
+            }
+          );
+          
+          setIsStreamingEncryption(false);
+          console.log(`✅ Streaming encryption completed`);
+        } else {
+          // Use traditional encryption for small files
+          console.log(`⚡ Using TRADITIONAL encryption for small file (${(fileToUpload.size / (1024*1024)).toFixed(2)}MB)`);
+          const fileBuffer = await fileToUpload.arrayBuffer();
+          encryptedFile = encryptFile(new Uint8Array(fileBuffer));
+          console.log(`✅ Traditional encryption completed`);
+        }
+        
         updateStep(2, true, false); // Mark as completed
         
-        // Step 4: Uploading to IPFS
+        // Step 4: Uploading to IPFS via backend
         updateStep(3); // Mark as in progress
-        const result = await uploadToIPFS(encryptedFile);
+        const result = await uploadToIPFSViaBackend(encryptedFile, fileToUpload.name);
         if (!result.success) {
           updateStep(3, false, true); // Mark as error
           setError(`IPFS upload failed: ${result.error}`);
@@ -314,11 +373,11 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
         // Update progress with IPFS hash
         setUploadProgress(prev => ({
           ...prev,
-          ipfsHash: result.hash
+          ipfsHash: result.ipfsHash
         }));
         
         updateStep(4); 
-        const txHash = await storeDocumentHash(result.hash, price);
+        const txHash = await storeDocumentHash(result.ipfsHash, price);
         updateStep(4, true, false); 
         
         setUploadProgress(prev => ({
@@ -331,14 +390,29 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
         updateStep(5); // Mark as in progress
         
         let previewHash = null;
-        // Upload preview to IPFS if it exists
+        // Upload preview to IPFS via backend if it exists
         if (previewFile) {
           try {
-            const previewBuffer = await previewFile.arrayBuffer();
-            const encryptedPreview = encryptFile(new Uint8Array(previewBuffer));
-            const previewResult = await uploadToIPFS(encryptedPreview);
+            const previewStreamer = new StreamingEncryption();
+            const shouldUseStreamingForPreview = previewStreamer.shouldUseStreaming(previewFile.size);
+            
+            let encryptedPreview;
+            
+            if (shouldUseStreamingForPreview) {
+              // Use streaming for large preview files
+              encryptedPreview = await previewStreamer.encryptFileStream(
+                previewFile,
+                (progress) => console.log(`Preview encryption progress: ${progress.toFixed(1)}%`)
+              );
+            } else {
+              // Use traditional encryption for small preview files
+              const previewBuffer = await previewFile.arrayBuffer();
+              encryptedPreview = encryptFile(new Uint8Array(previewBuffer));
+            }
+            
+            const previewResult = await uploadToIPFSViaBackend(encryptedPreview, previewFile.name);
             if (previewResult.success) {
-              previewHash = previewResult.hash;
+              previewHash = previewResult.ipfsHash;
             }
           } catch (error) {
             console.warn('Preview upload failed, continuing without preview:', error);
@@ -370,7 +444,7 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
           body: JSON.stringify({
             summary: summary.trim(),
             dataset_title: datasetTitle.trim(),
-            cid: result.hash,
+            cid: result.ipfsHash,
             metadata: metadata
           }),
         });
@@ -804,6 +878,21 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
                           : 'text-gray-500'
                   }`}>
                     {step.name}
+                    {/* Show streaming encryption progress */}
+                    {index === 2 && isStreamingEncryption && encryptionProgress > 0 && (
+                      <div className="mt-2">
+                        <div className="flex justify-between text-xs text-blue-600 mb-1">
+                          <span>Streaming encryption...</span>
+                          <span>{encryptionProgress.toFixed(1)}%</span>
+                        </div>
+                        <div className="w-full bg-blue-100 rounded-full h-1.5">
+                          <div 
+                            className="bg-blue-500 h-1.5 rounded-full transition-all duration-300" 
+                            style={{ width: `${encryptionProgress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    )}
                   </span>
                 </div>
               ))}
