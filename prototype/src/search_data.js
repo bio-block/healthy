@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, Filter, ArrowLeft, Download, ShoppingCart, Eye, FileText, Calendar, User, Building, X } from 'lucide-react';
 import { decryptFile } from './encryptionUtils';
 import { purchaseDocument, getDocumentPrice } from './contractService';
+import StreamingEncryption from './utils/streamingEncryption.js';
 
 export default function SearchData({ onBack }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,6 +21,29 @@ export default function SearchData({ onBack }) {
     fileType: ''
   });
   const [useFilters, setUseFilters] = useState(false);
+
+  // Helper function for smart decryption (streaming or traditional)
+  const smartDecrypt = async (encryptedData, progressCallback) => {
+    try {
+      // Try to detect if it's streaming encryption format
+      const dataString = typeof encryptedData === 'string' ? encryptedData : 
+                         encryptedData instanceof Uint8Array ? Buffer.from(encryptedData).toString('utf8') : 
+                         encryptedData;
+      
+      // Check if it has streaming encryption markers
+      if (dataString.includes('|METADATA_SEPARATOR|') && dataString.includes('|CHUNK_SEPARATOR|')) {
+        console.log('Detected streaming encryption format, using streaming decryption');
+        const streamer = new StreamingEncryption();
+        return await streamer.decryptFileStream(dataString, progressCallback);
+      } else {
+        console.log('Using traditional decryption');
+        return decryptFile(encryptedData);
+      }
+    } catch (error) {
+      console.warn('Streaming decryption failed, falling back to traditional:', error);
+      return decryptFile(encryptedData);
+    }
+  };
 
   const handleSearchSubmit = async () => {
     if (!searchQuery.trim() && !useFilters) {
@@ -142,8 +166,19 @@ export default function SearchData({ onBack }) {
       const response = await fetch(`https://gateway.pinata.cloud/ipfs/${cid}`);
       const encryptedData = await response.text();
       
-      const decryptedData = decryptFile(encryptedData);
-      const bytes = new Uint8Array(atob(decryptedData).split('').map(char => char.charCodeAt(0)));
+      // Use smart decryption (handles both streaming and traditional)
+      const decryptedData = await smartDecrypt(
+        encryptedData,
+        (progress) => console.log(`Decryption progress: ${progress.toFixed(1)}%`)
+      );
+      
+      // Handle both traditional and streaming decryption results
+      let bytes;
+      if (decryptedData instanceof Uint8Array) {
+        bytes = decryptedData;
+      } else {
+        bytes = new Uint8Array(atob(decryptedData).split('').map(char => char.charCodeAt(0)));
+      }
       
       const blob = new Blob([bytes], { type: result.metadata?.fileType || 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
@@ -176,8 +211,19 @@ export default function SearchData({ onBack }) {
       const response = await fetch(`https://gateway.pinata.cloud/ipfs/${previewHash}`);
       const encryptedData = await response.text();
       
-      const decryptedData = decryptFile(encryptedData);
-      const bytes = new Uint8Array(atob(decryptedData).split('').map(char => char.charCodeAt(0)));
+      // Use smart decryption for preview too
+      const decryptedData = await smartDecrypt(
+        encryptedData,
+        (progress) => console.log(`Preview decryption progress: ${progress.toFixed(1)}%`)
+      );
+      
+      // Handle both traditional and streaming decryption results
+      let bytes;
+      if (decryptedData instanceof Uint8Array) {
+        bytes = decryptedData;
+      } else {
+        bytes = new Uint8Array(atob(decryptedData).split('').map(char => char.charCodeAt(0)));
+      }
       
       const blob = new Blob([bytes], { type: result.metadata?.fileType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob);
