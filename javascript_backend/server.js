@@ -5,6 +5,7 @@ const cors = require('cors');
 // Import Routes
 const anonymizeRoutes = require('./routes/anonymize');
 const healthRoutes = require('./routes/health');
+const ipfsRoutes = require('./routes/ipfs');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -17,6 +18,7 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use('/api/anonymize', anonymizeRoutes);
 app.use('/api/health', healthRoutes);
+app.use('/api/ipfs', ipfsRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -26,7 +28,8 @@ app.get('/', (req, res) => {
         timestamp: new Date().toISOString(),
         endpoints: [
             '/api/health',
-            '/api/anonymize'
+            '/api/anonymize',
+            '/api/ipfs/upload'
         ]
     });
 });
