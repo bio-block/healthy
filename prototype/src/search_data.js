@@ -11,6 +11,11 @@ export default function SearchData({ onBack }) {
   const [downloading, setDownloading] = useState({});
   const [purchasing, setPurchasing] = useState({});
   
+  // Preview modal states
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  
   // Filter states
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -200,18 +205,18 @@ export default function SearchData({ onBack }) {
     }
   };
 
-  const handlePreviewDownload = async (result, index) => {
+  const handlePreviewView = async (result, index) => {
     const previewHash = result.metadata?.previewHash;
     if (!previewHash) return;
 
-    const previewKey = `preview_${index}`;
-    setDownloading(prev => ({ ...prev, [previewKey]: true }));
+    setPreviewLoading(true);
+    setShowPreviewModal(true);
     
     try {
       const response = await fetch(`https://gateway.pinata.cloud/ipfs/${previewHash}`);
       const encryptedData = await response.text();
       
-      // Use smart decryption for preview too
+      // Use smart decryption for preview
       const decryptedData = await smartDecrypt(
         encryptedData,
         (progress) => console.log(`Preview decryption progress: ${progress.toFixed(1)}%`)
@@ -225,25 +230,56 @@ export default function SearchData({ onBack }) {
         bytes = new Uint8Array(atob(decryptedData).split('').map(char => char.charCodeAt(0)));
       }
       
-      const blob = new Blob([bytes], { type: result.metadata?.fileType || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = URL.createObjectURL(blob);
-      
-      const a = document.createElement('a');
-      a.href = url;
-      const originalName = result.metadata?.fileName || `document_${index + 1}`;
-      const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
-      const extension = originalName.split('.').pop();
-      a.download = `preview_${nameWithoutExt}.${extension}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      // Parse Excel data for preview display
+      try {
+        // Import XLSX library dynamically
+        const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.0/package/xlsx.mjs');
+        
+        // Read the Excel file
+        const workbook = XLSX.read(bytes, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        // Convert to JSON to get the data
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        // Get headers and data rows
+        const headers = jsonData[0] || [];
+        const dataRows = jsonData.slice(1) || [];
+        
+        const previewInfo = {
+          fileName: result.metadata?.fileName || `document_${index + 1}`,
+          fileSize: bytes.length,
+          dataType: result.metadata?.fileType || 'Excel file',
+          message: 'Excel preview data loaded successfully. This is a 5% sample of the anonymized dataset.',
+          headers: headers,
+          data: dataRows,
+          totalRows: dataRows.length,
+          totalColumns: headers.length,
+          sheetName: firstSheetName
+        };
+        
+        setPreviewData(previewInfo);
+        
+      } catch (parseError) {
+        console.error('Error parsing Excel data:', parseError);
+        setPreviewData({
+          fileName: result.metadata?.fileName || `document_${index + 1}`,
+          fileSize: bytes.length,
+          dataType: 'File',
+          message: 'Preview loaded but could not parse Excel content. The file may be corrupted or in an unsupported format.',
+          error: parseError.message
+        });
+      }
       
     } catch (error) {
-      console.error('Preview Download Error:', error);
-      alert(`Error downloading preview: ${error.message}`);
+      console.error('Preview View Error:', error);
+      setPreviewData({
+        error: `Error loading preview: ${error.message}`,
+        fileName: result.metadata?.fileName || 'Unknown file'
+      });
     } finally {
-      setDownloading(prev => ({ ...prev, [previewKey]: false }));
+      setPreviewLoading(false);
     }
   };
 
@@ -602,19 +638,19 @@ export default function SearchData({ onBack }) {
                             {/* Preview Button for Excel files */}
                             {result.metadata?.previewHash && result.metadata?.fileType?.includes('spreadsheet') && (
                               <button
-                                onClick={() => handlePreviewDownload(result, index)}
-                                disabled={downloading[index]}
+                                onClick={() => handlePreviewView(result, index)}
+                                disabled={previewLoading}
                                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 disabled:transform-none font-medium"
                               >
-                                {downloading[`preview_${index}`] ? (
+                                {previewLoading ? (
                                   <>
                                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                    Downloading Preview...
+                                    Loading Preview...
                                   </>
                                 ) : (
                                   <>
                                     <Eye className="w-4 h-4" />
-                                    Preview (5%)
+                                    View Preview (5%)
                                   </>
                                 )}
                               </button>
@@ -654,6 +690,200 @@ export default function SearchData({ onBack }) {
                 </>
               );
             })()}
+          </div>
+        )}
+
+        {/* Preview Modal */}
+        {showPreviewModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                  <Eye size={24} className="text-blue-600" />
+                  Excel Preview (5% Sample)
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowPreviewModal(false);
+                    setPreviewData(null);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors duration-200"
+                >
+                  <X size={24} className="text-gray-500 hover:text-gray-700" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+                {previewLoading ? (
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p className="text-gray-600 font-medium">Loading preview data...</p>
+                  </div>
+                ) : previewData?.error ? (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <X size={32} className="text-red-500" />
+                    </div>
+                    <h4 className="text-xl font-semibold text-red-600 mb-2">Error Loading Preview</h4>
+                    <p className="text-gray-600">{previewData.error}</p>
+                  </div>
+                ) : previewData ? (
+                  <div className="space-y-6">
+                    {/* File Information */}
+                    <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl p-6">
+                      <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <FileText size={20} className="text-blue-600" />
+                        Dataset Overview
+                      </h4>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                          <span className="text-sm font-medium text-gray-600">File Name:</span>
+                          <p className="text-gray-800 font-semibold break-all">{previewData.fileName || 'Unknown'}</p>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-600">File Size:</span>
+                          <p className="text-gray-800 font-semibold">
+                            {previewData.fileSize ? `${(previewData.fileSize / 1024).toFixed(1)} KB` : 'Unknown'}
+                          </p>
+                        </div>
+                        {previewData.totalRows && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">Rows:</span>
+                            <p className="text-gray-800 font-semibold">{previewData.totalRows}</p>
+                          </div>
+                        )}
+                        {previewData.totalColumns && (
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">Columns:</span>
+                            <p className="text-gray-800 font-semibold">{previewData.totalColumns}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Excel Data Table */}
+                    {previewData.headers && previewData.data ? (
+                      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
+                          <h4 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                            📊 Preview Data
+                            {previewData.sheetName && (
+                              <span className="text-sm font-normal text-gray-600">({previewData.sheetName})</span>
+                            )}
+                          </h4>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Showing all {previewData.totalRows} rows (5% sample of the full dataset)
+                          </p>
+                        </div>
+                        
+                        <div className="overflow-x-auto max-h-96">
+                          <table className="min-w-full">
+                            {/* Table Headers */}
+                            <thead className="bg-gray-50 sticky top-0">
+                              <tr>
+                                <th className="px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-100">
+                                  #
+                                </th>
+                                {previewData.headers.map((header, idx) => (
+                                  <th key={idx} className="px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 bg-gray-100 min-w-[120px]">
+                                    {header || `Column ${idx + 1}`}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            
+                            {/* Table Body */}
+                            <tbody className="bg-white divide-y divide-gray-200">
+                              {previewData.data.map((row, rowIdx) => (
+                                <tr key={rowIdx} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                  <td className="px-3 py-2 text-sm text-gray-500 border-r border-gray-200 bg-gray-50 font-medium">
+                                    {rowIdx + 1}
+                                  </td>
+                                  {previewData.headers.map((_, colIdx) => (
+                                    <td key={colIdx} className="px-3 py-2 text-sm text-gray-900 border-r border-gray-200 max-w-[200px] truncate">
+                                      {row[colIdx] !== undefined && row[colIdx] !== null ? 
+                                        String(row[colIdx]) : 
+                                        <span className="text-gray-400 italic">—</span>
+                                      }
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
+                        <div className="flex items-start gap-3">
+                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Eye size={16} className="text-white" />
+                          </div>
+                          <div>
+                            <h5 className="font-semibold text-blue-800 mb-2">Preview Information</h5>
+                            <p className="text-blue-700">{previewData.message}</p>
+                            {previewData.error && (
+                              <p className="text-red-600 mt-2 text-sm">Error: {previewData.error}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Preview Note */}
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-6">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <FileText size={16} className="text-white" />
+                        </div>
+                        <div>
+                          <h5 className="font-semibold text-yellow-800 mb-2">About This Preview</h5>
+                          <ul className="text-yellow-700 space-y-1 text-sm">
+                            <li>• This preview contains the first 5% of rows from the anonymized dataset</li>
+                            <li>• All personal health information (PHI) has been anonymized</li>
+                            <li>• The preview shows the actual data structure and quality you'll receive</li>
+                            <li>• Full dataset purchase includes all remaining data with the same anonymization quality</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+                      <button
+                        onClick={() => {
+                          setShowPreviewModal(false);
+                          setPreviewData(null);
+                        }}
+                        className="px-6 py-3 text-gray-600 hover:text-gray-700 border border-gray-300 rounded-xl hover:bg-gray-50 transition-all duration-200 font-medium"
+                      >
+                        Close Preview
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          setShowPreviewModal(false);
+                          setPreviewData(null);
+                          // You can add logic here to trigger the purchase flow
+                        }}
+                        className="px-8 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg font-medium"
+                      >
+                        Purchase Full Dataset
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <FileText size={32} className="text-gray-400" />
+                    </div>
+                    <p className="text-gray-500">No preview data available</p>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
