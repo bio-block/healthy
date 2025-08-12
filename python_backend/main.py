@@ -14,6 +14,18 @@ import numpy as np
 from PIL import Image
 import io
 
+# Presidio imports for advanced image anonymization
+try:
+    from presidio_image_redactor import ImageRedactorEngine
+    from presidio_analyzer import AnalyzerEngine
+    from presidio_anonymizer import AnonymizerEngine
+    presidio_available = True
+    print("Presidio libraries loaded successfully")
+except ImportError:
+    presidio_available = False
+    print("Warning: Presidio libraries not found. Advanced image anonymization will not work.")
+    print("Install with: pip install presidio_analyzer presidio_anonymizer presidio_image_redactor")
+
 app = FastAPI()
 
 app.add_middleware(
@@ -30,10 +42,29 @@ collection = chroma_client.get_or_create_collection(name="new_user_data")
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 try:
-    nlp = spacy.load("en_core_web_sm")
+    nlp = spacy.load("en_core_web_lg")  # Updated to use large model for better accuracy
 except IOError:
-    print("Warning: spaCy English model not found. Image anonymization will not work.")
-    nlp = None
+    try:
+        nlp = spacy.load("en_core_web_sm")  # Fallback to small model
+        print("Warning: Using en_core_web_sm. For better accuracy, install en_core_web_lg")
+    except IOError:
+        print("Warning: spaCy English model not found. Image anonymization will not work.")
+        nlp = None
+
+# Initialize Presidio engines for advanced anonymization
+presidio_analyzer = None
+presidio_anonymizer = None
+presidio_image_redactor = None
+
+if presidio_available:
+    try:
+        presidio_analyzer = AnalyzerEngine()
+        presidio_anonymizer = AnonymizerEngine()
+        presidio_image_redactor = ImageRedactorEngine()
+        print("Presidio engines initialized successfully")
+    except Exception as e:
+        print(f"Warning: Failed to initialize Presidio engines: {str(e)}")
+        presidio_available = False
 
 
 try:
@@ -63,9 +94,28 @@ def generate_id() -> str:
     random_suffix = hash(str(uuid.uuid4())) % 10000
     return f"{timestamp}{random_suffix}"
 
-def mask_phi_in_image(image_cv):
+def mask_phi_in_image_presidio(pil_image):
     """
-    Detect and mask PHI (Personal Health Information) in an image using OCR and NLP
+    Advanced PHI detection and redaction using Presidio Image Redactor
+    This uses state-of-the-art ML models for better accuracy
+    """
+    if not presidio_available or presidio_image_redactor is None:
+        raise HTTPException(
+            status_code=500, 
+            detail="Presidio image redactor not available. Please install with: pip install presidio_analyzer presidio_anonymizer presidio_image_redactor"
+        )
+    
+    try:
+        # Use Presidio's advanced image redaction
+        redacted_image = presidio_image_redactor.redact(pil_image)
+        return redacted_image
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing image with Presidio: {str(e)}")
+
+def mask_phi_in_image_legacy(image_cv):
+    """
+    Legacy PHI detection using OCR and spaCy (fallback method)
     """
     if nlp is None:
         raise HTTPException(status_code=500, detail="spaCy English model not available. Please install it with: python -m spacy download en_core_web_sm")
@@ -77,7 +127,6 @@ def mask_phi_in_image(image_cv):
         # Convert BGR to RGB for OCR processing
         rgb_image = cv2.cvtColor(image_cv, cv2.COLOR_BGR2RGB)
         
-        
         ocr_data = pytesseract.image_to_data(rgb_image, output_type=Output.DICT)
         
         full_text = " ".join(ocr_data["text"])
@@ -86,7 +135,6 @@ def mask_phi_in_image(image_cv):
         
         phi_entities = set(ent.text.strip() for ent in doc.ents if ent.label_ in PHI_LABELS)
         
-       
         for i, word in enumerate(ocr_data["text"]):
             if word.strip() in phi_entities:
                 x, y, w, h = ocr_data["left"][i], ocr_data["top"][i], ocr_data["width"][i], ocr_data["height"][i]
@@ -106,47 +154,119 @@ async def root():
             "/search": "Search documents", 
             "/filter": "Filter documents by metadata",
             "/search_with_filter": "Combined search and filter",
-            "/anonymize_image": "Anonymize PHI in images"
+            "/anonymize_image": "Anonymize PHI in images (Presidio + Legacy fallback)",
+            "/anonymize_image_presidio": "Anonymize PHI in images (Presidio only, advanced)"
+        },
+        "status": {
+            "presidio_available": presidio_available,
+            "tesseract_available": tesseract_available,
+            "spacy_model": "en_core_web_lg" if nlp and hasattr(nlp, 'meta') and nlp.meta.get('name') == 'en_core_web_lg' else "en_core_web_sm" if nlp else "not_available"
         }
     }
 
+# @app.post("/anonymize_image")
+# async def anonymize_image(file: UploadFile = File(...)):
+#     """
+#     Anonymize PHI in JPEG/JPG/PNG images using Presidio (preferred) or legacy OCR+spaCy
+#     """
+#     try:
+#         # Validate file type
+#         if not file.content_type or not file.content_type.startswith('image/'):
+#             raise HTTPException(status_code=400, detail="File must be an image")
+        
+#         if file.content_type not in ['image/jpeg', 'image/jpg', 'image/png']:
+#             raise HTTPException(status_code=400, detail="Only JPEG, JPG, and PNG images are supported")
+        
+#         # Read and convert image
+#         contents = await file.read()
+#         pil_image = Image.open(io.BytesIO(contents)).convert("RGB")
+        
+#         # Try Presidio first (preferred method)
+#         if presidio_available and presidio_image_redactor is not None:
+#             try:
+#                 print("Using Presidio advanced image redaction")
+#                 redacted_image_pil = mask_phi_in_image_presidio(pil_image)
+                
+#                 # Save redacted image
+#                 img_buffer = io.BytesIO()
+#                 redacted_image_pil.save(img_buffer, format='JPEG', quality=95)
+#                 img_buffer.seek(0)
+                
+#                 return StreamingResponse(
+#                     io.BytesIO(img_buffer.read()),
+#                     media_type="image/jpeg",
+#                     headers={"Content-Disposition": f"attachment; filename=presidio_anonymized_{file.filename}"}
+#                 )
+                
+#             except Exception as e:
+#                 print(f"Presidio failed, falling back to legacy method: {str(e)}")
+        
+#         # Fallback to legacy OCR + spaCy method
+#         print("Using legacy OCR + spaCy image redaction")
+#         image_cv = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+#         masked_image_cv = mask_phi_in_image_legacy(image_cv)
+        
+#         # Convert back to PIL and save
+#         masked_image_rgb = cv2.cvtColor(masked_image_cv, cv2.COLOR_BGR2RGB)
+#         masked_pil = Image.fromarray(masked_image_rgb)
+        
+#         img_buffer = io.BytesIO()
+#         masked_pil.save(img_buffer, format='JPEG', quality=95)
+#         img_buffer.seek(0)
+
+#         return StreamingResponse(
+#             io.BytesIO(img_buffer.read()),
+#             media_type="image/jpeg",
+#             headers={"Content-Disposition": f"attachment; filename=legacy_anonymized_{file.filename}"}
+#         )
+        
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Failed to anonymize image: {str(e)}")
+
+
 @app.post("/anonymize_image")
-async def anonymize_image(file: UploadFile = File(...)):
+async def anonymize_image_presidio_only(file: UploadFile = File(...)):
     """
-    Anonymize PHI in JPEG/JPG/PNG images using OCR and NLP
+    Anonymize PHI in images using ONLY Presidio (force advanced method)
     """
     try:
-       
+        if not presidio_available or presidio_image_redactor is None:
+            raise HTTPException(
+                status_code=503, 
+                detail="Presidio not available. Install with: pip install presidio_analyzer presidio_anonymizer presidio_image_redactor && python -m spacy download en_core_web_lg"
+            )
+        
+        # Validate file type
         if not file.content_type or not file.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="File must be an image")
         
         if file.content_type not in ['image/jpeg', 'image/jpg', 'image/png']:
             raise HTTPException(status_code=400, detail="Only JPEG, JPG, and PNG images are supported")
         
+        # Read and process image
         contents = await file.read()
-        image = Image.open(io.BytesIO(contents)).convert("RGB")
-       
-        image_cv = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        pil_image = Image.open(io.BytesIO(contents)).convert("RGB")
         
-        masked_image = mask_phi_in_image(image_cv)
+        print("Processing image with Presidio advanced redaction")
+        redacted_image_pil = mask_phi_in_image_presidio(pil_image)
         
-        masked_image_rgb = cv2.cvtColor(masked_image, cv2.COLOR_BGR2RGB)
-        masked_pil = Image.fromarray(masked_image_rgb)
-        
+        # Save and return redacted image
         img_buffer = io.BytesIO()
-        masked_pil.save(img_buffer, format='JPEG', quality=95)
+        redacted_image_pil.save(img_buffer, format='PNG', quality=95)
         img_buffer.seek(0)
-
+        
         return StreamingResponse(
             io.BytesIO(img_buffer.read()),
-            media_type="image/jpeg",
-            headers={"Content-Disposition": f"attachment; filename=anonymized_{file.filename}"}
+            media_type="image/png",
+            headers={"Content-Disposition": f"attachment; filename=presidio_redacted_{file.filename}"}
         )
         
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to anonymize image: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to anonymize image with Presidio: {str(e)}")
 
 
 @app.post("/store")
