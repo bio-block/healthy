@@ -25,7 +25,7 @@ Bio-Block is a decentralized document management system that leverages blockchai
 - **Integrated Preview Generation**: Preview is extracted from already anonymized data ensuring consistency and efficiency
 - **Free Preview Downloads**: Users can download Excel previews without payment or wallet connection to evaluate data structure
 - **Preview Visual Indicators**: Search results show "Preview Available" badges and dedicated preview download buttons for Excel files
-- **Image PHI Anonymization**: New OCR + NLP-based anonymization for medical images (JPEG, PNG) using Tesseract OCR and spaCy NLP
+- **Image PHI Anonymization**: Advanced Presidio-based anonymization for medical images using state-of-the-art ML models, with OCR+spaCy fallback
 - **Dual-Backend Architecture**: Smart routing system - Excel files to JavaScript backend (port 3001), image files to Python backend (port 3002)
 - **Enhanced File Support**: Streamlined to support only Excel (.xlsx, .xls) and image files (.jpg, .jpeg, .png) with PHI removal capabilities
 - **Advanced PHI Detection**: Comprehensive entity recognition for medical images including names, dates, addresses, phone numbers, and medical identifiers
@@ -101,6 +101,7 @@ healthy/
 │   ├── vercel.json          # Vercel deployment config
 │   └── package.json
 ├── testing/                  # Test files and utilities
+│   ├── image_anonymization_presidio.html # Presidio testing interface
 └── README.md
 ```
 
@@ -130,9 +131,9 @@ The project consists of multiple components:
 - Text embedding service using ChromaDB
 - Document search functionality with similarity scoring
 - Vector storage and retrieval for semantic search
-- **Image PHI Anonymization**: OCR + NLP processing for medical images
-- Tesseract OCR for text extraction from images
-- spaCy NLP for medical entity recognition and masking
+- **Image PHI Anonymization**: Advanced Presidio ML-based processing with OCR+spaCy fallback
+- Microsoft Presidio for state-of-the-art medical image redaction
+- Legacy Tesseract OCR + spaCy NLP fallback method
 
 **Updated Dependencies (requirements.txt):**
 - `fastapi` - Web framework
@@ -141,6 +142,9 @@ The project consists of multiple components:
 - `opencv-python` - Computer vision library
 - `pytesseract` - Tesseract OCR wrapper
 - `spacy` - Natural language processing
+- `presidio-analyzer` - Advanced PII detection
+- `presidio-anonymizer` - Text anonymization  
+- `presidio-image-redactor` - ML-based image redaction
 - `numpy` - Numerical computing
 - `Pillow` - Image processing library
 - `python-multipart` - File upload handling
@@ -163,11 +167,9 @@ The project consists of multiple components:
 ### Python Backend Dependencies
 The Python backend requires additional system-level dependencies for image PHI anonymization:
 
-- **Tesseract OCR**: Text extraction from images
-  - Windows: Download installer from GitHub
-  - macOS: Install via Homebrew
-  - Linux: Install via package manager
-- **spaCy English Model**: Natural language processing for medical entity recognition
+- **Presidio Libraries**: Advanced ML-based image redaction (recommended)
+- **Tesseract OCR**: Text extraction from images (fallback)
+- **spaCy Models**: en_core_web_lg (preferred) or en_core_web_sm
 - **OpenCV**: Image processing and computer vision
 - **PIL/Pillow**: Python image processing library
 
@@ -219,15 +221,17 @@ The Python backend requires additional system-level dependencies for image PHI a
 
 6. **Install additional dependencies for image PHI anonymization**
    
-   **Download spaCy English model:**
+   **Install Presidio (advanced ML-based method):**
    ```bash
-   python -m spacy download en_core_web_sm
+   pip install presidio-analyzer presidio-anonymizer presidio-image-redactor
+   python -m spacy download en_core_web_lg
    ```
    
-   **Install Tesseract OCR:**
-   - **Windows**: Download from [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/wiki)
-   - **macOS**: `brew install tesseract`
-   - **Linux**: `sudo apt install tesseract-ocr`
+   **Install fallback dependencies:**
+   ```bash
+   python -m spacy download en_core_web_sm
+   # Install Tesseract: Windows: UB-Mannheim/tesseract, macOS: brew install tesseract, Linux: sudo apt install tesseract-ocr
+   ```
 
 ### Running the Application
 
@@ -295,11 +299,10 @@ The Python backend requires additional system-level dependencies for image PHI a
 - `POST /search` - Search documents using natural language queries
 - `POST /filter` - Filter documents by metadata criteria (data type, gender, data source, file type)
 - `POST /search_with_filter` - Combined semantic search with metadata filtering
-- `POST /anonymize_image` - Anonymize PHI in medical images
+- `POST /anonymize_image` - Anonymize PHI in medical images using Presidio ML models with OCR+spaCy fallback
   - Input: Image file (.jpg, .jpeg, .png) via multipart form data
-  - Optional: Wallet address for personal data anonymization
-  - Output: Anonymized image with PHI text masked/removed
-  - Uses: Tesseract OCR + spaCy NLP for medical entity detection
+  - Output: Anonymized image with advanced ML-based PHI redaction
+  - Method: Presidio (primary), Tesseract OCR + spaCy NLP (fallback)
 - Returns similarity scores, document metadata, and summaries
 
 ### Example API Usage
@@ -325,10 +328,9 @@ curl -X POST https://bioblock-python-backend.onrender.com/search_with_filter \
   -H "Content-Type: application/json" \
   -d '{"query": "diabetes research", "filters": {"dataType": "Institution", "dataSource": "Hospital"}, "n_results": 5}'
 
-# Anonymize medical image (multipart form data)
+# Anonymize medical image using Presidio ML models
 curl -X POST https://bioblock-python-backend.onrender.com/anonymize_image \
-  -F "file=@medical_scan.jpg" \
-  -F "walletAddress=0x1234..."
+  -F "file=@medical_scan.jpg"
 ```
 
 ## Environment Configuration
