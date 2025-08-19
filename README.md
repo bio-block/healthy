@@ -75,10 +75,8 @@ healthy/
 │   ├── src/
 │   │   ├── App.js            # Main application with navigation
 │   │   ├── contractService.js # Smart contract interactions
-│   │   ├── UploadFile.js     # IPFS upload via Pinata
 │   │   ├── upload_data.js    # Document upload interface with streaming encryption
 │   │   ├── search_data.js    # Document search interface with smart decryption
-│   │   ├── search.js         # Enhanced search component
 │   │   ├── Dashboard.js      # User dashboard with earnings and document management
 │   │   ├── encryptionUtils.js # Traditional document encryption utilities
 │   │   ├── utils/
@@ -93,15 +91,15 @@ healthy/
 ├── javascript_backend/        # Express.js API server
 │   ├── controllers/          # Business logic controllers
 │   │   ├── anonymizeController.js # Excel file anonymization logic
+│   │   ├── ipfsController.js      # IPFS interaction logic
 │   │   └── healthController.js    # Health check logic
 │   ├── routes/              # API route definitions
 │   │   ├── anonymize.js     # Excel anonymization routes
+│   │   ├── ipfs.js          # IPFS routes
 │   │   └── health.js        # Health check routes
 │   ├── server.js            # Main server file
 │   ├── vercel.json          # Vercel deployment config
 │   └── package.json
-├── testing/                  # Test files and utilities
-│   ├── image_anonymization_presidio.html # Presidio testing interface
 └── README.md
 ```
 
@@ -288,6 +286,9 @@ The Python backend requires additional system-level dependencies for image PHI a
   - Optional: Wallet address for personal data anonymization
   - Optional: `generatePreview=true` parameter to create 5% sample preview
   - Output: Full anonymized Excel file, and preview file (if requested) containing first 5% of rows (min 5, max 50)
+- `POST /api/ipfs/upload` - Upload a file to IPFS
+  - Input: file via multipart form data
+  - Output: IPFS hash of the uploaded file
 - Organized with MVC architecture (controllers and routes)
 
 ### Python Backend (FastAPI)
