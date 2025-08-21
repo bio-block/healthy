@@ -9,7 +9,12 @@ class TestAPI(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
 
     def test_store(self):
-        data = {"summary": "test", "metadata": {"title": "test"}}
+        data = {
+            "summary": "test", 
+            "dataset_title": "test",
+            "cid": "test-cid-123",
+            "metadata": {"title": "test"}
+        }
         resp = requests.post(f"{BASE_URL}/store", json=data)
         self.assertIn(resp.status_code, [200, 201])
 
@@ -31,8 +36,10 @@ class TestAPI(unittest.TestCase):
     def test_anonymize_image(self):
         # Replace 'test.jpg' with a valid test image path
         with open("test.jpg", "rb") as img:
-            files = {"file": img}
+            files = {"file": ("test.jpg", img, "image/jpeg")}
             resp = requests.post(f"{BASE_URL}/anonymize_image", files=files)
+            print(f"Response status: {resp.status_code}")
+            print(f"Response text: {resp.text}")
             self.assertEqual(resp.status_code, 200)
 
 if __name__ == "__main__":

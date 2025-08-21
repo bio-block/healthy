@@ -1,11 +1,14 @@
 const request = require('supertest');
 const expect = require('chai').expect;
+
+// Create a proper supertest instance pointing to the server URL
 const app = 'http://localhost:3001';
 
 describe('API Endpoints', function() {
   it('GET / should return API info', async function() {
     const res = await request(app).get('/');
     expect(res.status).to.equal(200);
+    expect(res.body).to.have.property('message');
   });
 
   it('GET /api/health should return health status', async function() {
@@ -14,11 +17,13 @@ describe('API Endpoints', function() {
   });
 
   it('POST /api/anonymize should anonymize Excel file', async function() {
-    // Replace 'test.xlsx' with a valid test Excel file path
+    // Using the test.xlsx file we created in the tests directory
     const res = await request(app)
       .post('/api/anonymize')
-      .attach('file', 'test.xlsx')
+      .attach('file', './tests/test.xlsx')
       .field('generatePreview', 'true');
+    console.log('Response status:', res.status);
+    console.log('Response body:', res.body);
     expect(res.status).to.equal(200);
   });
 });
