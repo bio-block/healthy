@@ -12,7 +12,7 @@ Bio-Block is a decentralized document management system that leverages blockchai
 - **Decentralized Storage**: IPFS-based storage with encryption and secure access controls
 
 ### 🏥 Healthcare Data Management
-- **Multi-format Support**: Excel (.xlsx, .xls) and medical images (.jpg, .jpeg, .png)
+- **Multi-format Support**: Excel (.xlsx, .xls), CSV, ODS, TSV, and other spreadsheet formats (.xlsm, .xlsb), plus medical images (.jpg, .jpeg, .png)
 - **Smart Anonymization**: Wallet-based hashing for personal data, OCR+NLP for medical images
 - **Preview System**: Free 5% preview of Excel data for evaluation before purchase
 - **Metadata Collection**: Comprehensive tagging with disease types, demographics, and data sources
@@ -163,11 +163,11 @@ Access the application at `http://localhost:3000`
 
 - `GET /` - Root endpoint with API information
 - `GET /api/health` - Health check endpoint to verify server status
-- `POST /api/anonymize` - Anonymize PHI (Personal Health Information) in Excel files with optional preview generation
-  - Input: Excel file (.xlsx or .xls) via multipart form data
+- `POST /api/anonymize` - Anonymize PHI (Personal Health Information) in spreadsheet files with optional preview generation
+  - Input: Spreadsheet file (.xlsx, .xls, .csv, .ods, .tsv, .xlsm, .xlsb) via multipart form data
   - Optional: Wallet address for personal data anonymization
   - Optional: `generatePreview=true` parameter to create 5% sample preview
-  - Output: Full anonymized Excel file, and preview file (if requested) containing first 5% of rows (min 5, max 50)
+  - Output: Full anonymized spreadsheet file, and preview file (if requested) containing first 5% of rows (min 5, max 50)
 - `POST /api/ipfs/upload` - Upload a file to IPFS
   - Input: file via multipart form data
   - Output: IPFS hash of the uploaded file
@@ -214,9 +214,18 @@ curl -X POST http://localhost:3002/search_with_filter \
 curl -X POST http://localhost:3002/anonymize_image \
   -F "file=@medical_scan.jpg"
 
-# Test Excel anonymization (JavaScript backend)
+# Test spreadsheet anonymization (JavaScript backend)
 curl -X POST http://localhost:3001/api/anonymize \
   -F "file=@sample_data.xlsx" \
+  -F "generatePreview=true"
+
+# Test with different spreadsheet formats
+curl -X POST http://localhost:3001/api/anonymize \
+  -F "file=@test_sample.csv" \
+  -F "generatePreview=true"
+
+curl -X POST http://localhost:3001/api/anonymize \
+  -F "file=@test_sample.tsv" \
   -F "generatePreview=true"
 ```
 

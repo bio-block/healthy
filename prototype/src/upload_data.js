@@ -181,11 +181,11 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
     if (file.type.startsWith('image/')) {
       backendUrl = process.env.REACT_APP_PYTHON_BACKEND_URL || 'http://localhost:3002';
       endpoint = '/anonymize_image';
-    } else if (file.name.match(/\.(xlsx|xls)$/i)) {
+    } else if (file.name.match(/\.(xlsx|xls|csv|ods|tsv|xlsm|xlsb)$/i)) {
       backendUrl = process.env.REACT_APP_JS_BACKEND_URL || 'http://localhost:3001';
       endpoint = '/anonymize';
     } else {
-      throw new Error('File type not supported for anonymization. Only Excel (.xlsx, .xls) and image files (.jpg, .jpeg, .png) are supported.');
+      throw new Error('File type not supported for anonymization. Only Excel (.xlsx, .xls, .csv, .ods, .tsv, .xlsm, .xlsb) and image files (.jpg, .jpeg, .png) are supported.');
     }
 
     const response = await fetch(`${backendUrl}${endpoint}`, {
@@ -300,7 +300,7 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
       
       // Step 2: Anonymizing (if Excel or Image) and extracting preview
       updateStep(1); // Mark as in progress
-      if (selectedFile.name.match(/\.(xlsx|xls)$/i) || selectedFile.type.startsWith('image/')) {
+      if (selectedFile.name.match(/\.(xlsx|xls|csv|ods|tsv|xlsm|xlsb)$/i) || selectedFile.type.startsWith('image/')) {
         try {
           const result = await anonymizeFile(selectedFile);
           fileToUpload = result.mainFile;
@@ -314,7 +314,7 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
       } else {
         // File type not supported - this should not happen due to file input restrictions
         updateStep(1, false, true); // Mark as error
-        setError('File type not supported for upload. Only Excel and image files are accepted.');
+        setError('File type not supported for upload. Only Excel and spreadsheet files (.xlsx, .xls, .csv, .ods, .tsv, .xlsm, .xlsb) and image files are accepted.');
         return;
       }
       
@@ -551,7 +551,7 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
                     onChange={handleFileChange}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     id="file-upload"
-                    accept=".xlsx,.xls,.jpg,.jpeg,.png"
+                    accept=".xlsx,.xls,.csv,.ods,.tsv,.xlsm,.xlsb,.jpg,.jpeg,.png"
                     disabled={!isWalletConnected}
                   />
                   
@@ -560,7 +560,7 @@ export default function UploadData({ onBack, isWalletConnected, walletAddress, o
                       {selectedFile ? selectedFile.name : 'Choose a file or drag and drop'}
                     </p>
                     <p className={`${isWalletConnected ? 'text-gray-500' : 'text-gray-400'} text-sm`}>
-                      EXCEL (XLSX, XLS) and Images (JPG, JPEG, PNG) only
+                      Spreadsheets and Images (JPG, JPEG, PNG) only
                     </p>
                   </div>
                 </div>

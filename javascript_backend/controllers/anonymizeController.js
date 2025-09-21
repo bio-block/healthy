@@ -7,11 +7,25 @@ const storage = multer.memoryStorage();
 const upload = multer({
     storage: storage,
     fileFilter: (req, file, cb) => {
-        if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
-            file.mimetype === 'application/vnd.ms-excel') {
+        // Accept Excel files, CSV, ODS, TSV and other spreadsheet formats
+        const allowedMimeTypes = [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+            'application/vnd.ms-excel', // .xls
+            'text/csv', // .csv
+            'application/csv', // .csv (alternative)
+            'application/vnd.oasis.opendocument.spreadsheet', // .ods
+            'text/tab-separated-values', // .tsv
+            'application/vnd.ms-excel.sheet.macroEnabled.12', // .xlsm
+            'application/vnd.ms-excel.sheet.binary.macroEnabled.12' // .xlsb
+        ];
+        
+        // Also check file extension as a fallback
+        const allowedExtensions = /\.(xlsx|xls|csv|ods|tsv|xlsm|xlsb)$/i;
+        
+        if (allowedMimeTypes.includes(file.mimetype) || allowedExtensions.test(file.originalname)) {
             cb(null, true);
         } else {
-            cb(new Error('Only Excel files (.xlsx, .xls) are allowed'), false);
+            cb(new Error('Only spreadsheet files (.xlsx, .xls, .csv, .ods, .tsv, .xlsm, .xlsb) are allowed'), false);
         }
     },
     limits: {
@@ -41,7 +55,7 @@ const anonymizeFile = async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ 
-                error: 'No file uploaded. Please upload an Excel file.' 
+                error: 'No file uploaded. Please upload a spreadsheet file.' 
             });
         }
 
@@ -52,10 +66,28 @@ const anonymizeFile = async (req, res) => {
         console.log('Processing anonymization:', { 
             isPersonalData, 
             generatePreview,
+            fileName: req.file.originalname,
+            fileSize: req.file.size,
+            mimeType: req.file.mimetype,
             walletAddress: walletAddress ? `${walletAddress.substring(0, 6)}...` : 'N/A' 
         });
 
-        const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+        // Parse the file using XLSX library which supports multiple formats
+        let workbook;
+        try {
+            // XLSX library automatically detects format based on file content
+            workbook = XLSX.read(req.file.buffer, { 
+                type: 'buffer',
+                cellDates: true,
+                cellNF: false,
+                cellText: false
+            });
+        } catch (parseError) {
+            console.error('File parsing error:', parseError);
+            return res.status(400).json({ 
+                error: 'Failed to parse spreadsheet file. Please ensure the file is not corrupted and is in a supported format.' 
+            });
+        }
         const allIdentifiers = new Set();
         const sheetColumnRefs = {};
 
@@ -199,8 +231,46 @@ const anonymizeFile = async (req, res) => {
             XLSX.utils.book_append_sheet(cleanedWorkbook, newWorksheet, sheetName);
         });
 
+        // Determine output format based on input file extension
+        const originalFileName = req.file.originalname;
+        const fileExtension = originalFileName.split('.').pop().toLowerCase();
+        
+        let outputFormat = 'xlsx'; // Default format
+        let outputMimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        
+        // Map file extensions to XLSX library book types
+        switch (fileExtension) {
+            case 'xls':
+                outputFormat = 'xls';
+                outputMimeType = 'application/vnd.ms-excel';
+                break;
+            case 'csv':
+                outputFormat = 'csv';
+                outputMimeType = 'text/csv';
+                break;
+            case 'ods':
+                outputFormat = 'ods';
+                outputMimeType = 'application/vnd.oasis.opendocument.spreadsheet';
+                break;
+            case 'tsv':
+                outputFormat = 'txt'; // XLSX library uses 'txt' for TSV
+                outputMimeType = 'text/tab-separated-values';
+                break;
+            case 'xlsm':
+                outputFormat = 'xlsm';
+                outputMimeType = 'application/vnd.ms-excel.sheet.macroEnabled.12';
+                break;
+            case 'xlsb':
+                outputFormat = 'xlsb';
+                outputMimeType = 'application/vnd.ms-excel.sheet.binary.macroEnabled.12';
+                break;
+            default:
+                outputFormat = 'xlsx';
+                outputMimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        }
+
         const outputBuffer = XLSX.write(cleanedWorkbook, { 
-            bookType: 'xlsx', 
+            bookType: outputFormat, 
             type: 'buffer' 
         });
 
@@ -229,7 +299,7 @@ const anonymizeFile = async (req, res) => {
             });
 
             const previewBuffer = XLSX.write(previewWorkbook, { 
-                bookType: 'xlsx', 
+                bookType: outputFormat, 
                 type: 'buffer' 
             });
 
@@ -237,26 +307,26 @@ const anonymizeFile = async (req, res) => {
             const timestamp = Date.now();
             return res.json({
                 success: true,
+                message: 'File anonymized successfully with preview',
                 files: {
                     main: {
-                        buffer: outputBuffer.toString('base64'),
-                        filename: `phi_anonymized_${timestamp}.xlsx`,
-                        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        data: outputBuffer.toString('base64'),
+                        filename: `anonymized_${originalFileName}`,
+                        contentType: outputMimeType
                     },
                     preview: {
-                        buffer: previewBuffer.toString('base64'),
-                        filename: `preview_${timestamp}.xlsx`,
-                        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                        data: previewBuffer.toString('base64'),
+                        filename: `preview_${originalFileName}`,
+                        contentType: outputMimeType
                     }
                 }
             });
         }
 
         // Standard response for normal anonymization without preview
-        const timestamp = Date.now();
-        const filename = `phi_anonymized_${timestamp}.xlsx`;
+        const filename = `phi_anonymized_${originalFileName}`;
         
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Type', outputMimeType);
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.setHeader('Content-Length', outputBuffer.length);
 
@@ -265,9 +335,9 @@ const anonymizeFile = async (req, res) => {
     } catch (error) {
         console.error('Error processing file:', error);
         
-        if (error.message.includes('Only Excel files')) {
+        if (error.message.includes('Only')) {
             return res.status(400).json({ 
-                error: 'Invalid file type. Please upload an Excel file (.xlsx or .xls).' 
+                error: 'Invalid file type. Please upload a supported spreadsheet file (.xlsx, .xls, .csv, .ods, .tsv, .xlsm, .xlsb).' 
             });
         }
         
