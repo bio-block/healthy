@@ -115,7 +115,9 @@ const anonymizeFile = async (req, res) => {
                     const row = jsonData[i];
                     if (row && row[patientIdCol]) {
                         const patientId = String(row[patientIdCol]).toLowerCase().trim();
-                        allIdentifiers.add(patientId);
+                        if (patientId) {
+                            allIdentifiers.add(patientId);
+                        }
                     }
                 }
                 sheetColumnRefs[sheetName] = { patientIdCol };
@@ -209,20 +211,33 @@ const anonymizeFile = async (req, res) => {
                     // Case 3: Institution + Patient ID exists - Hash each patient ID individually
                     for (let i = 1; i < cleanedData.length; i++) {
                         const row = cleanedData[i];
-                        let id = null;
+                        if (!row || !row.some(cell => cell !== undefined && cell !== null && cell !== '')) {
+                            continue;
+                        }
 
+                        let id = null;
                         if (sheetRefs.patientIdCol !== undefined && row && row[sheetRefs.patientIdCol]) {
                             const patientId = String(row[sheetRefs.patientIdCol]).toLowerCase().trim();
-                            id = identifierToId[patientId];
+                            if (patientId) {
+                                id = identifierToId[patientId];
+                            }
                         }
 
-                        if (id) {
-                            columnsToMask.forEach(colIndex => {
-                                if (row[colIndex] !== undefined) {
-                                    row[colIndex] = id;
-                                }
-                            });
+                        // fallback if patient id is missing
+                        if (!id) {
+                            if (isPersonalData && walletAddress) {
+                                id = generateAnonymizedId(walletAddress, 1);
+                            } else {
+                                const uuid = generateUUID();
+                                id = generateAnonymizedId(uuid, i);
+                            }
                         }
+
+                        columnsToMask.forEach(colIndex => {
+                            if (row[colIndex] !== undefined) {
+                                row[colIndex] = id;
+                            }
+                        });
                     }
                 }
             }
