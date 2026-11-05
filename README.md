@@ -105,6 +105,7 @@ healthy/
 ### Prerequisites
 - Node.js (v14+)
 - Python (v3.8+)  
+- Tesseract OCR (optional, for image anonymization)
 - MetaMask or Ethereum wallet
 - Git
 
@@ -141,6 +142,8 @@ healthy/
    REACT_APP_PYTHON_BACKEND_URL=http://localhost:3002
    REACT_APP_JS_BACKEND_URL=http://localhost:3001
    ```
+
+   *(Optional)* If Tesseract OCR is installed in a non-standard location and not on your `PATH`, set `TESSERACT_PATH` in your environment (e.g. `export TESSERACT_PATH=/usr/bin/tesseract`).
 
 4. **Run the application**
    ```bash

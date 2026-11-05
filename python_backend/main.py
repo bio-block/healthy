@@ -3,16 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
-import chromadb
+import os
+import shutil
 import time
 import uuid
+import io
+import chromadb
 import cv2
 import pytesseract
 import spacy
 from pytesseract import Output
 import numpy as np
 from PIL import Image
-import io
 
 # Presidio imports for advanced image anonymization
 try:
@@ -39,8 +41,23 @@ app.add_middleware(
 chroma_client = chromadb.PersistentClient(path="./chroma_db")
 collection = chroma_client.get_or_create_collection(name="new_user_data")
 
-# Tesseract path for macOS (installed via Homebrew)
-pytesseract.pytesseract.tesseract_cmd = '/opt/homebrew/bin/tesseract'
+# configure tesseract binary across platforms
+_tess_path = os.environ.get("TESSERACT_PATH") or shutil.which("tesseract")
+if not _tess_path:
+    candidates = [
+        "/opt/homebrew/bin/tesseract",
+        "/usr/local/bin/tesseract",
+        "/usr/bin/tesseract",
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            _tess_path = path
+            break
+
+if _tess_path:
+    pytesseract.pytesseract.tesseract_cmd = _tess_path
 
 try:
     nlp = spacy.load("en_core_web_lg")  # Updated to use large model for better accuracy
